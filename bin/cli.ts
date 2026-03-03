@@ -5,7 +5,8 @@ import { homedir } from 'os';
 import { RepublicKey } from '../src/key.js';
 import { RepublicClient } from '../src/client.js';
 import { JobManager } from '../src/job.js';
-import { signTx, msgSend, msgDelegate } from '../src/transaction.js';
+import { signTx, msgSend, msgDelegate, msgWithdrawReward, msgVote } from '../src/transaction.js';
+import { araiToRai } from '../src/utils.js';
 import { REPUBLIC_TESTNET, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from '../src/constants.js';
 import type { KeyStore } from '../src/types.js';
 
@@ -58,7 +59,7 @@ const program = new Command();
 program
   .name('republic-sdk')
   .description('CLI for Republic AI blockchain')
-  .version('0.1.0');
+  .version('0.2.0');
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
 
@@ -222,11 +223,11 @@ program
       }
 
       for (const coin of balances) {
-        const amount = BigInt(coin.amount);
-        const whole = amount / BigInt(10 ** 18);
-        const frac = amount % BigInt(10 ** 18);
-        const fracStr = frac.toString().padStart(18, '0').slice(0, 4);
-        console.log(`${whole}.${fracStr} RAI (${coin.amount} ${coin.denom})`);
+        if (coin.denom === 'arai') {
+          console.log(`${araiToRai(coin.amount)} RAI (${coin.amount} ${coin.denom})`);
+        } else {
+          console.log(`${coin.amount} ${coin.denom}`);
+        }
       }
     } catch (err) {
       console.error('Failed to query balance:', (err as Error).message);
@@ -255,7 +256,7 @@ program
       const key = getKey(opts.from);
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
-      const accountInfo = await client.getAccountInfo(address);
+      const accountInfo = await client.getAccountInfoSafe(address);
 
       const msg = msgSend(address, opts.to, [
         { denom: REPUBLIC_TESTNET.denom, amount: opts.amount },
@@ -299,12 +300,205 @@ program
       const key = getKey(opts.from);
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
-      const accountInfo = await client.getAccountInfo(address);
+      const accountInfo = await client.getAccountInfoSafe(address);
 
       const msg = msgDelegate(address, opts.validator, {
         denom: REPUBLIC_TESTNET.denom,
         amount: opts.amount,
       });
+
+      const txBytes = signTx(key, [msg], {
+        accountNumber: accountInfo.accountNumber,
+        sequence: accountInfo.sequence,
+        gasLimit: parsePositiveInt(opts.gas, 'gas limit'),
+        feeAmount: opts.fees,
+        memo: opts.memo,
+      });
+
+      const result = await client.broadcastTx(txBytes);
+      console.log(`TX Hash: ${result.hash}`);
+      console.log(`Code:    ${result.code}`);
+    } catch (err) {
+      console.error('Failed:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+// ─── Validators ───────────────────────────────────────────────────────────────
+
+program
+  .command('validators')
+  .description('List validators')
+  .option('--status <status>', 'Filter by status (BOND_STATUS_BONDED, BOND_STATUS_UNBONDING, BOND_STATUS_UNBONDED)')
+  .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
+  .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
+  .action(async (opts: { status?: string; rpc: string; rest: string }) => {
+    try {
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const validators = await client.getValidators(
+        opts.status as 'BOND_STATUS_BONDED' | 'BOND_STATUS_UNBONDING' | 'BOND_STATUS_UNBONDED' | undefined,
+      );
+
+      if (validators.length === 0) {
+        console.log('No validators found.');
+        return;
+      }
+
+      console.log('Moniker'.padEnd(25) + 'Operator Address'.padEnd(55) + 'Status'.padEnd(28) + 'Tokens');
+      console.log('-'.repeat(130));
+      for (const v of validators) {
+        console.log(
+          v.moniker.slice(0, 24).padEnd(25) +
+          v.operatorAddress.padEnd(55) +
+          v.status.padEnd(28) +
+          araiToRai(v.tokens) + ' RAI',
+        );
+      }
+    } catch (err) {
+      console.error('Failed to query validators:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+// ─── Delegations ──────────────────────────────────────────────────────────────
+
+program
+  .command('delegations <address>')
+  .description('List delegations for an address')
+  .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
+  .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
+  .action(async (address: string, opts: { rpc: string; rest: string }) => {
+    try {
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const delegations = await client.getDelegations(address);
+
+      if (delegations.length === 0) {
+        console.log('No delegations found.');
+        return;
+      }
+
+      console.log('Validator'.padEnd(55) + 'Amount');
+      console.log('-'.repeat(80));
+      for (const d of delegations) {
+        const amount = d.balance.denom === 'arai'
+          ? `${araiToRai(d.balance.amount)} RAI`
+          : `${d.balance.amount} ${d.balance.denom}`;
+        console.log(d.validatorAddress.padEnd(55) + amount);
+      }
+    } catch (err) {
+      console.error('Failed to query delegations:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+// ─── Rewards ──────────────────────────────────────────────────────────────────
+
+program
+  .command('rewards <address>')
+  .description('Query staking rewards for an address')
+  .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
+  .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
+  .action(async (address: string, opts: { rpc: string; rest: string }) => {
+    try {
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const rewards = await client.getRewards(address);
+
+      if (rewards.length === 0) {
+        console.log('No rewards found.');
+        return;
+      }
+
+      for (const r of rewards) {
+        console.log(`Validator: ${r.validatorAddress}`);
+        for (const coin of r.reward) {
+          if (coin.denom === 'arai') {
+            console.log(`  ${araiToRai(coin.amount)} RAI`);
+          } else {
+            console.log(`  ${coin.amount} ${coin.denom}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to query rewards:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+// ─── Withdraw Rewards ─────────────────────────────────────────────────────────
+
+program
+  .command('withdraw-rewards')
+  .description('Withdraw staking rewards from a validator')
+  .requiredOption('--from <key>', 'Delegator key name')
+  .requiredOption('--validator <address>', 'Validator address')
+  .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
+  .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
+  .option('--memo <memo>', 'Transaction memo', '')
+  .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
+  .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .action(async (opts: {
+    from: string; validator: string;
+    rpc: string; rest: string; memo: string; gas: string; fees: string;
+  }) => {
+    try {
+      const key = getKey(opts.from);
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const address = key.getAddress();
+      const accountInfo = await client.getAccountInfoSafe(address);
+
+      const msg = msgWithdrawReward(address, opts.validator);
+
+      const txBytes = signTx(key, [msg], {
+        accountNumber: accountInfo.accountNumber,
+        sequence: accountInfo.sequence,
+        gasLimit: parsePositiveInt(opts.gas, 'gas limit'),
+        feeAmount: opts.fees,
+        memo: opts.memo,
+      });
+
+      const result = await client.broadcastTx(txBytes);
+      console.log(`TX Hash: ${result.hash}`);
+      console.log(`Code:    ${result.code}`);
+    } catch (err) {
+      console.error('Failed:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+// ─── Vote ─────────────────────────────────────────────────────────────────────
+
+program
+  .command('vote')
+  .description('Vote on a governance proposal')
+  .requiredOption('--from <key>', 'Voter key name')
+  .requiredOption('--proposal <id>', 'Proposal ID')
+  .requiredOption('--option <option>', 'Vote option: yes (1), abstain (2), no (3), no_with_veto (4)')
+  .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
+  .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
+  .option('--memo <memo>', 'Transaction memo', '')
+  .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
+  .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .action(async (opts: {
+    from: string; proposal: string; option: string;
+    rpc: string; rest: string; memo: string; gas: string; fees: string;
+  }) => {
+    try {
+      const voteMap: Record<string, number> = {
+        yes: 1, abstain: 2, no: 3, no_with_veto: 4,
+        '1': 1, '2': 2, '3': 3, '4': 4,
+      };
+      const voteOption = voteMap[opts.option.toLowerCase()];
+      if (!voteOption) {
+        console.error('Invalid vote option. Use: yes, abstain, no, no_with_veto (or 1-4)');
+        process.exit(1);
+      }
+
+      const key = getKey(opts.from);
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const address = key.getAddress();
+      const accountInfo = await client.getAccountInfoSafe(address);
+
+      const msg = msgVote(opts.proposal, address, voteOption);
 
       const txBytes = signTx(key, [msg], {
         accountNumber: accountInfo.accountNumber,
@@ -401,8 +595,7 @@ program
   }) => {
     try {
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-      const key = RepublicKey.generate();
-      const jobManager = new JobManager(client, key);
+      const jobManager = new JobManager(client);
 
       if (opts.watch) {
         const interval = parsePositiveInt(opts.interval, 'interval', 100);

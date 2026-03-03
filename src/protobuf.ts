@@ -75,7 +75,7 @@ export function rawMessage(...fields: Uint8Array[]): Uint8Array {
 
 // ─── Cosmos Primitives ────────────────────────────────────────────────────────
 
-import type { Coin, TxMessage, MsgSend, MsgDelegate, MsgUndelegate, MsgBeginRedelegate, MsgSubmitJob, Fee } from './types.js';
+import type { Coin, TxMessage, MsgSend, MsgDelegate, MsgUndelegate, MsgBeginRedelegate, MsgSubmitJob, MsgWithdrawDelegatorReward, MsgVote, Fee } from './types.js';
 import { MSG_TYPES } from './constants.js';
 
 /** cosmos.base.v1beta1.Coin { string denom = 1; string amount = 2; } */
@@ -146,6 +146,23 @@ export function encodeMsgSubmitJob(msg: MsgSubmitJob): Uint8Array {
   );
 }
 
+/** cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward */
+export function encodeMsgWithdrawDelegatorReward(msg: MsgWithdrawDelegatorReward): Uint8Array {
+  return rawMessage(
+    stringField(1, msg.delegator_address),
+    stringField(2, msg.validator_address),
+  );
+}
+
+/** cosmos.gov.v1beta1.MsgVote */
+export function encodeMsgVote(msg: MsgVote): Uint8Array {
+  return rawMessage(
+    varintField(1, BigInt(msg.proposal_id)),
+    stringField(2, msg.voter),
+    varintField(3, msg.option),
+  );
+}
+
 /** Route a TxMessage to the correct encoder */
 export function encodeMessage(msg: TxMessage): Uint8Array {
   switch (msg['@type']) {
@@ -157,6 +174,10 @@ export function encodeMessage(msg: TxMessage): Uint8Array {
       return encodeAny(msg['@type'], encodeMsgUndelegate(msg as MsgUndelegate));
     case MSG_TYPES.REDELEGATE:
       return encodeAny(msg['@type'], encodeMsgBeginRedelegate(msg as MsgBeginRedelegate));
+    case MSG_TYPES.WITHDRAW_REWARD:
+      return encodeAny(msg['@type'], encodeMsgWithdrawDelegatorReward(msg as MsgWithdrawDelegatorReward));
+    case MSG_TYPES.VOTE:
+      return encodeAny(msg['@type'], encodeMsgVote(msg as MsgVote));
     case MSG_TYPES.SUBMIT_JOB:
       return encodeAny(msg['@type'], encodeMsgSubmitJob(msg as MsgSubmitJob));
     default:

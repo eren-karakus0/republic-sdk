@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify dist outputs
+        run: |
+          test -f dist/index.js || exit 1
+          test -f dist/index.cjs || exit 1
+          test -f dist/index.d.ts || exit 1
+          test -f dist/cli.js || exit 1
+
+      - name: Verify CJS import
+        run: node -e "require('./dist/index.cjs')"
+
+      - name: Verify ESM import
+        run: node --input-type=module -e "import './dist/index.js'"

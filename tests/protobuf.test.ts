@@ -10,9 +10,11 @@ import {
   encodeAuthInfo,
   encodeSignDoc,
   encodeTxRaw,
+  encodeMsgWithdrawDelegatorReward,
+  encodeMsgVote,
 } from '../src/protobuf';
-import { msgSend } from '../src/transaction';
-import { PUBKEY_TYPE } from '../src/constants';
+import { msgSend, msgWithdrawReward, msgVote } from '../src/transaction';
+import { PUBKEY_TYPE, MSG_TYPES } from '../src/constants';
 
 describe('Protobuf primitives', () => {
   describe('encodeVarint', () => {
@@ -188,6 +190,60 @@ describe('Protobuf message encoding', () => {
       expect(result.length).toBeGreaterThan(0);
       // Should start with field 1 (body_bytes)
       expect(result[0]).toBe(0x0a);
+    });
+  });
+
+  describe('encodeMsgWithdrawDelegatorReward', () => {
+    it('should encode withdraw reward message', () => {
+      const msg = msgWithdrawReward('rai1delegator', 'raivaloper1validator');
+      const result = encodeMsgWithdrawDelegatorReward(msg);
+
+      expect(result.length).toBeGreaterThan(0);
+      // field 1 = delegator_address (string, tag = 0x0a)
+      expect(result[0]).toBe(0x0a);
+
+      // Should contain both addresses
+      const decoded = Buffer.from(result).toString();
+      expect(decoded).toContain('rai1delegator');
+      expect(decoded).toContain('raivaloper1validator');
+    });
+
+    it('should encode in TxBody via encodeMessage', () => {
+      const msg = msgWithdrawReward('rai1del', 'raivaloper1val');
+      const body = encodeTxBody([msg]);
+      expect(body.length).toBeGreaterThan(0);
+      expect(body[0]).toBe(0x0a);
+    });
+  });
+
+  describe('encodeMsgVote', () => {
+    it('should encode vote message', () => {
+      const msg = msgVote('1', 'rai1voter', 1);
+      const result = encodeMsgVote(msg);
+
+      expect(result.length).toBeGreaterThan(0);
+      // field 1 = proposal_id (varint, tag = 0x08)
+      expect(result[0]).toBe(0x08);
+    });
+
+    it('should encode different vote options', () => {
+      const msgYes = msgVote('1', 'rai1voter', 1);
+      const msgNo = msgVote('1', 'rai1voter', 3);
+
+      const resultYes = encodeMsgVote(msgYes);
+      const resultNo = encodeMsgVote(msgNo);
+
+      // Different vote options should produce different encodings
+      expect(Buffer.from(resultYes).toString('hex')).not.toBe(
+        Buffer.from(resultNo).toString('hex'),
+      );
+    });
+
+    it('should encode in TxBody via encodeMessage', () => {
+      const msg = msgVote('5', 'rai1voter', 2);
+      const body = encodeTxBody([msg]);
+      expect(body.length).toBeGreaterThan(0);
+      expect(body[0]).toBe(0x0a);
     });
   });
 });

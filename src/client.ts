@@ -1,21 +1,34 @@
 import axios, { AxiosInstance } from 'axios';
 import { REPUBLIC_TESTNET } from './constants.js';
+import { sleep, retry } from './utils.js';
+import type { RetryOptions } from './utils.js';
+import { RpcError, BroadcastError, TimeoutError, AccountNotFoundError } from './errors.js';
 import type {
   AccountInfo,
   BroadcastResult,
   ChainConfig,
   Coin,
+  Delegation,
   NodeStatus,
+  Proposal,
+  Reward,
   TxResponse,
+  Validator,
 } from './types.js';
+
+export interface ClientOptions {
+  retryOptions?: Partial<RetryOptions>;
+}
 
 export class RepublicClient {
   private rpc: AxiosInstance;
   private rest: AxiosInstance;
   readonly config: ChainConfig;
+  private retryOpts: Partial<RetryOptions>;
 
-  constructor(config?: Partial<ChainConfig>) {
+  constructor(config?: Partial<ChainConfig>, options?: ClientOptions) {
     this.config = { ...REPUBLIC_TESTNET, ...config };
+    this.retryOpts = options?.retryOptions ?? {};
 
     this.rpc = axios.create({
       baseURL: this.config.rpc,
@@ -29,23 +42,37 @@ export class RepublicClient {
     });
   }
 
-  /** Tendermint JSON-RPC call */
+  /** Tendermint JSON-RPC call with retry */
   private async rpcCall<T = unknown>(
     method: string,
     params: Record<string, unknown> = {},
   ): Promise<T> {
-    const { data } = await this.rpc.post('', {
-      jsonrpc: '2.0',
-      id: 1,
-      method,
-      params,
-    });
+    return retry(async () => {
+      const { data } = await this.rpc.post('', {
+        jsonrpc: '2.0',
+        id: 1,
+        method,
+        params,
+      });
 
-    if (data.error) {
-      throw new Error(`RPC Error: ${JSON.stringify(data.error)}`);
-    }
+      if (data.error) {
+        throw new RpcError(
+          `RPC Error: ${JSON.stringify(data.error)}`,
+          data.error.code ?? -1,
+          this.config.rpc,
+        );
+      }
 
-    return data.result as T;
+      return data.result as T;
+    }, this.retryOpts);
+  }
+
+  /** REST GET call with retry */
+  private async restGet<T = unknown>(path: string): Promise<T> {
+    return retry(async () => {
+      const { data } = await this.rest.get(path);
+      return data as T;
+    }, this.retryOpts);
   }
 
   /** Query node status */
@@ -80,20 +107,42 @@ export class RepublicClient {
   /** Get account info (account_number, sequence) via REST API */
   async getAccountInfo(address: string): Promise<AccountInfo> {
     try {
-      const { data } = await this.rest.get(
-        `/cosmos/auth/v1beta1/accounts/${address}`,
-      );
+      const data = await this.restGet<{
+        account?: {
+          base_account?: { address: string; account_number: string; sequence: string };
+          address?: string;
+          account_number?: string;
+          sequence?: string;
+        };
+        base_account?: { address: string; account_number: string; sequence: string };
+        address?: string;
+        account_number?: string;
+        sequence?: string;
+      }>(`/cosmos/auth/v1beta1/accounts/${address}`);
 
       const account = data.account || data;
-      const baseAccount = account.base_account || account;
+      const baseAccount = (account as Record<string, unknown>).base_account || account;
+      const ba = baseAccount as Record<string, string>;
 
       return {
-        address: baseAccount.address || address,
-        accountNumber: baseAccount.account_number || '0',
-        sequence: baseAccount.sequence || '0',
+        address: ba.address || address,
+        accountNumber: ba.account_number || '0',
+        sequence: ba.sequence || '0',
       };
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
+        throw new AccountNotFoundError(address);
+      }
+      throw err;
+    }
+  }
+
+  /** Get account info, returning defaults for non-existent accounts */
+  async getAccountInfoSafe(address: string): Promise<AccountInfo> {
+    try {
+      return await this.getAccountInfo(address);
+    } catch (err) {
+      if (err instanceof AccountNotFoundError) {
         return { address, accountNumber: '0', sequence: '0' };
       }
       throw err;
@@ -102,7 +151,7 @@ export class RepublicClient {
 
   /** Get account balances */
   async getBalances(address: string): Promise<Coin[]> {
-    const { data } = await this.rest.get(
+    const data = await this.restGet<{ balances?: Coin[] }>(
       `/cosmos/bank/v1beta1/balances/${address}`,
     );
     return (data.balances || []) as Coin[];
@@ -112,7 +161,7 @@ export class RepublicClient {
   async getBalance(address: string, denom?: string): Promise<Coin> {
     const d = denom || this.config.denom;
     try {
-      const { data } = await this.rest.get(
+      const data = await this.restGet<{ balance?: Coin }>(
         `/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${d}`,
       );
       return (data.balance || { denom: d, amount: '0' }) as Coin;
@@ -135,10 +184,6 @@ export class RepublicClient {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = await this.rpcCall<any>(methodMap[mode], { tx: txBytes });
 
-    // broadcast_tx_commit has a different response shape:
-    //   { hash, height, check_tx: { code, log }, deliver_tx: { code, log } }
-    // broadcast_tx_sync / async:
-    //   { hash, code, log, codespace }
     if (mode === 'commit') {
       const checkCode = raw.check_tx?.code ?? 0;
       const deliverCode = raw.deliver_tx?.code ?? 0;
@@ -148,20 +193,22 @@ export class RepublicClient {
         : (raw.deliver_tx?.log ?? '');
 
       if (code !== 0) {
-        throw new Error(`Broadcast failed (code ${code}): ${log}`);
+        throw new BroadcastError(
+          `Broadcast failed (code ${code}): ${log}`,
+          code, log, raw.hash,
+        );
       }
 
-      return {
-        hash: raw.hash ?? '',
-        code: 0,
-        log,
-      };
+      return { hash: raw.hash ?? '', code: 0, log };
     }
 
     const code = raw.code ?? 0;
     const log = raw.log ?? '';
     if (code !== 0) {
-      throw new Error(`Broadcast failed (code ${code}): ${log}`);
+      throw new BroadcastError(
+        `Broadcast failed (code ${code}): ${log}`,
+        code, log, raw.hash,
+      );
     }
 
     return {
@@ -215,7 +262,7 @@ export class RepublicClient {
       await sleep(pollIntervalMs);
     }
 
-    throw new Error(`Timeout waiting for tx ${hash}`);
+    throw new TimeoutError(`Timeout waiting for tx ${hash}`);
   }
 
   /** ABCI query */
@@ -231,8 +278,10 @@ export class RepublicClient {
     });
 
     if (result.response.code !== 0) {
-      throw new Error(
+      throw new RpcError(
         `ABCI query failed: ${result.response.log}`,
+        result.response.code,
+        this.config.rpc,
       );
     }
 
@@ -255,8 +304,11 @@ export class RepublicClient {
     const txResponse = data.tx_response;
 
     if (txResponse.code !== 0) {
-      throw new Error(
+      throw new BroadcastError(
         `Broadcast failed (code ${txResponse.code}): ${txResponse.raw_log}`,
+        txResponse.code,
+        txResponse.raw_log || '',
+        txResponse.txhash,
       );
     }
 
@@ -266,8 +318,142 @@ export class RepublicClient {
       log: txResponse.raw_log || '',
     };
   }
-}
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  // ─── Staking Queries ─────────────────────────────────────────────────────────
+
+  /** Get validator list */
+  async getValidators(
+    status?: 'BOND_STATUS_BONDED' | 'BOND_STATUS_UNBONDING' | 'BOND_STATUS_UNBONDED',
+  ): Promise<Validator[]> {
+    const query = status ? `?status=${status}` : '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/staking/v1beta1/validators${query}`,
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data.validators || []).map((v: any) => ({
+      operatorAddress: v.operator_address,
+      moniker: v.description?.moniker || '',
+      status: v.status,
+      tokens: v.tokens || '0',
+      commission: v.commission?.commission_rates?.rate || '0',
+      jailed: v.jailed || false,
+    })) as Validator[];
+  }
+
+  /** Get single validator info */
+  async getValidator(validatorAddress: string): Promise<Validator> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/staking/v1beta1/validators/${validatorAddress}`,
+    );
+
+    const v = data.validator;
+    return {
+      operatorAddress: v.operator_address,
+      moniker: v.description?.moniker || '',
+      status: v.status,
+      tokens: v.tokens || '0',
+      commission: v.commission?.commission_rates?.rate || '0',
+      jailed: v.jailed || false,
+    };
+  }
+
+  /** Get all delegations for a delegator */
+  async getDelegations(delegatorAddress: string): Promise<Delegation[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/staking/v1beta1/delegations/${delegatorAddress}`,
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data.delegation_responses || []).map((d: any) => ({
+      delegatorAddress: d.delegation?.delegator_address,
+      validatorAddress: d.delegation?.validator_address,
+      shares: d.delegation?.shares || '0',
+      balance: d.balance || { denom: this.config.denom, amount: '0' },
+    })) as Delegation[];
+  }
+
+  /** Get delegation to a specific validator */
+  async getDelegation(
+    delegatorAddress: string,
+    validatorAddress: string,
+  ): Promise<Delegation> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/staking/v1beta1/validators/${validatorAddress}/delegations/${delegatorAddress}`,
+    );
+
+    const d = data.delegation_response;
+    return {
+      delegatorAddress: d.delegation?.delegator_address,
+      validatorAddress: d.delegation?.validator_address,
+      shares: d.delegation?.shares || '0',
+      balance: d.balance || { denom: this.config.denom, amount: '0' },
+    };
+  }
+
+  /** Get all staking rewards for a delegator */
+  async getRewards(delegatorAddress: string): Promise<Reward[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards`,
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data.rewards || []).map((r: any) => ({
+      validatorAddress: r.validator_address,
+      reward: r.reward || [],
+    })) as Reward[];
+  }
+
+  /** Get staking reward for a specific validator */
+  async getReward(
+    delegatorAddress: string,
+    validatorAddress: string,
+  ): Promise<Coin[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards/${validatorAddress}`,
+    );
+
+    return (data.rewards || []) as Coin[];
+  }
+
+  // ─── Governance Queries ──────────────────────────────────────────────────────
+
+  /** Get governance proposals */
+  async getProposals(status?: string): Promise<Proposal[]> {
+    const query = status ? `?proposal_status=${status}` : '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/gov/v1beta1/proposals${query}`,
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data.proposals || []).map((p: any) => ({
+      proposalId: p.proposal_id || p.id,
+      title: p.content?.title || p.title || '',
+      status: p.status,
+      votingEndTime: p.voting_end_time || '',
+    })) as Proposal[];
+  }
+
+  /** Get a specific governance proposal */
+  async getProposal(proposalId: string): Promise<Proposal> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await this.restGet<any>(
+      `/cosmos/gov/v1beta1/proposals/${proposalId}`,
+    );
+
+    const p = data.proposal;
+    return {
+      proposalId: p.proposal_id || p.id,
+      title: p.content?.title || p.title || '',
+      status: p.status,
+      votingEndTime: p.voting_end_time || '',
+    };
+  }
 }

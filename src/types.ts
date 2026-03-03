@@ -110,6 +110,49 @@ export interface MsgSubmitJob extends TxMessage {
   fee_amount: string;
 }
 
+export interface MsgWithdrawDelegatorReward extends TxMessage {
+  '@type': '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward';
+  delegator_address: string;
+  validator_address: string;
+}
+
+export interface MsgVote extends TxMessage {
+  '@type': '/cosmos.gov.v1beta1.MsgVote';
+  proposal_id: string;
+  voter: string;
+  option: number;
+}
+
+// Staking & governance query types
+
+export interface Validator {
+  operatorAddress: string;
+  moniker: string;
+  status: string;
+  tokens: string;
+  commission: string;
+  jailed: boolean;
+}
+
+export interface Delegation {
+  delegatorAddress: string;
+  validatorAddress: string;
+  shares: string;
+  balance: Coin;
+}
+
+export interface Reward {
+  validatorAddress: string;
+  reward: Coin[];
+}
+
+export interface Proposal {
+  proposalId: string;
+  title: string;
+  status: string;
+  votingEndTime: string;
+}
+
 // Job types
 
 export interface JobSubmitParams {

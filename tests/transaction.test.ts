@@ -8,6 +8,8 @@ import {
   msgUndelegate,
   msgRedelegate,
   msgSubmitJob,
+  msgWithdrawReward,
+  msgVote,
 } from '../src/transaction';
 import { MSG_TYPES } from '../src/constants';
 
@@ -66,6 +68,33 @@ describe('Message builders', () => {
     expect(msg['@type']).toBe(MSG_TYPES.SUBMIT_JOB);
     expect(msg.creator).toBe('rai1creator');
     expect(msg.execution_image).toBe('test-image:latest');
+  });
+
+  it('msgWithdrawReward should create correct message', () => {
+    const msg = msgWithdrawReward('rai1del', 'raivaloper1val');
+    expect(msg['@type']).toBe(MSG_TYPES.WITHDRAW_REWARD);
+    expect(msg.delegator_address).toBe('rai1del');
+    expect(msg.validator_address).toBe('raivaloper1val');
+  });
+
+  it('msgVote should create correct message', () => {
+    const msg = msgVote('1', 'rai1voter', 1);
+    expect(msg['@type']).toBe(MSG_TYPES.VOTE);
+    expect(msg.proposal_id).toBe('1');
+    expect(msg.voter).toBe('rai1voter');
+    expect(msg.option).toBe(1);
+  });
+
+  it('msgVote should accept all vote options', () => {
+    const yes = msgVote('1', 'rai1voter', 1);
+    const abstain = msgVote('1', 'rai1voter', 2);
+    const no = msgVote('1', 'rai1voter', 3);
+    const veto = msgVote('1', 'rai1voter', 4);
+
+    expect(yes.option).toBe(1);
+    expect(abstain.option).toBe(2);
+    expect(no.option).toBe(3);
+    expect(veto.option).toBe(4);
   });
 });
 

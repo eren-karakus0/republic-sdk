@@ -1,7 +1,23 @@
 // Core classes
 export { RepublicKey, hexToBytes, bytesToHex, addressToBytes, bytesToAddress } from './key.js';
 export { RepublicClient } from './client.js';
+export type { ClientOptions } from './client.js';
 export { JobManager } from './job.js';
+
+// Errors
+export {
+  RepublicError,
+  RpcError,
+  RestError,
+  BroadcastError,
+  TimeoutError,
+  ValidationError,
+  AccountNotFoundError,
+} from './errors.js';
+
+// Utilities
+export { sleep, retry, araiToRai, raiToArai } from './utils.js';
+export type { RetryOptions } from './utils.js';
 
 // Transaction builders
 export {
@@ -12,6 +28,8 @@ export {
   msgUndelegate,
   msgRedelegate,
   msgSubmitJob,
+  msgWithdrawReward,
+  msgVote,
 } from './transaction.js';
 export type { TxOptions } from './transaction.js';
 
@@ -24,6 +42,8 @@ export {
   encodeCoin,
   encodeAny,
   encodeMessage,
+  encodeMsgWithdrawDelegatorReward,
+  encodeMsgVote,
 } from './protobuf.js';
 
 // Constants
@@ -45,6 +65,12 @@ export type {
   MsgUndelegate,
   MsgBeginRedelegate,
   MsgSubmitJob,
+  MsgWithdrawDelegatorReward,
+  MsgVote,
+  Validator,
+  Delegation,
+  Reward,
+  Proposal,
   JobSubmitParams,
   JobStatus,
   KeyInfo,

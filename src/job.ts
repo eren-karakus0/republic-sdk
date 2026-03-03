@@ -2,18 +2,24 @@ import { RepublicClient } from './client.js';
 import { RepublicKey } from './key.js';
 import { signTx, msgSubmitJob } from './transaction.js';
 import { DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from './constants.js';
+import { sleep } from './utils.js';
+import { TimeoutError } from './errors.js';
 import type { JobSubmitParams, JobStatus, BroadcastResult, TxResponse } from './types.js';
 
 export class JobManager {
   constructor(
     private client: RepublicClient,
-    private key: RepublicKey,
+    private key?: RepublicKey,
   ) {}
 
   /** Submit a compute job to the blockchain */
   async submitJob(params: JobSubmitParams): Promise<BroadcastResult> {
+    if (!this.key) {
+      throw new Error('Key is required for submitting jobs');
+    }
+
     const address = this.key.getAddress(this.client.config.addressPrefix);
-    const accountInfo = await this.client.getAccountInfo(address);
+    const accountInfo = await this.client.getAccountInfoSafe(address);
 
     const msg = msgSubmitJob({
       creator: address,
@@ -46,13 +52,12 @@ export class JobManager {
     const result = await this.submitJob(params);
     const txResponse = await this.client.waitForTx(result.hash, timeoutMs);
 
-    // Try to extract job_id from events
     const jobId = extractJobId(txResponse);
 
     return { txResponse, jobId };
   }
 
-  /** Get job status by job ID */
+  /** Get job status by job ID (no key required) */
   async getJobStatus(jobId: string): Promise<JobStatus> {
     const data = Buffer.from(
       JSON.stringify({ job_id: jobId }),
@@ -77,6 +82,7 @@ export class JobManager {
   /**
    * Watch job status with polling (async generator).
    * Yields updated status until job completes or timeout.
+   * Distinguishes "not found" from real errors.
    */
   async *watchJob(
     jobId: string,
@@ -84,10 +90,13 @@ export class JobManager {
     timeoutMs = 300000,
   ): AsyncGenerator<JobStatus> {
     const start = Date.now();
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
 
     while (Date.now() - start < timeoutMs) {
       try {
         const status = await this.getJobStatus(jobId);
+        consecutiveErrors = 0;
         yield status;
 
         if (
@@ -96,14 +105,27 @@ export class JobManager {
         ) {
           return;
         }
-      } catch {
-        // Job may not be available yet, keep polling
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const isNotFound = message.includes('not found') || message.includes('404');
+
+        if (isNotFound) {
+          // Job may not be indexed yet, keep polling
+          consecutiveErrors = 0;
+        } else {
+          consecutiveErrors++;
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            throw new Error(
+              `Job polling failed after ${maxConsecutiveErrors} consecutive errors: ${message}`,
+            );
+          }
+        }
       }
 
       await sleep(intervalMs);
     }
 
-    throw new Error(`Timeout watching job ${jobId}`);
+    throw new TimeoutError(`Timeout watching job ${jobId}`);
   }
 }
 
@@ -128,14 +150,9 @@ function extractJobId(txResponse: TxResponse): string | null {
 function tryDecodeBase64(str: string): string {
   try {
     const decoded = Buffer.from(str, 'base64').toString();
-    // If it decoded to printable ASCII, use it
     if (/^[\x20-\x7E]+$/.test(decoded)) return decoded;
   } catch {
     // Not base64
   }
   return str;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

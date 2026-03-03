@@ -14,6 +14,8 @@ import type {
   MsgUndelegate,
   MsgBeginRedelegate,
   MsgSubmitJob,
+  MsgWithdrawDelegatorReward,
+  MsgVote,
   TxMessage,
 } from './types.js';
 
@@ -169,5 +171,29 @@ export function msgSubmitJob(params: {
     upload_endpoint: params.uploadEndpoint,
     fetch_endpoint: params.fetchEndpoint,
     fee_amount: params.feeAmount,
+  };
+}
+
+export function msgWithdrawReward(
+  delegatorAddress: string,
+  validatorAddress: string,
+): MsgWithdrawDelegatorReward {
+  return {
+    '@type': MSG_TYPES.WITHDRAW_REWARD,
+    delegator_address: delegatorAddress,
+    validator_address: validatorAddress,
+  };
+}
+
+export function msgVote(
+  proposalId: string,
+  voter: string,
+  option: number,
+): MsgVote {
+  return {
+    '@type': MSG_TYPES.VOTE,
+    proposal_id: proposalId,
+    voter,
+    option,
   };
 }
