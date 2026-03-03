@@ -21,7 +21,6 @@ async function main() {
   // 2. Submit a compute job
   console.log('Submitting job...');
   const { txResponse, jobId } = await jobManager.submitAndWait({
-    from: key.getAddress(),
     targetValidator: 'raivaloper1...',
     executionImage: 'republic-llm-inference:latest',
     verificationImage: 'example-verification:latest',

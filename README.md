@@ -29,7 +29,7 @@ npx republic-sdk node-status
 ### Programmatic Usage
 
 ```typescript
-import { RepublicKey, RepublicClient, signTx, encodeTx, msgSend } from 'republic-sdk';
+import { RepublicKey, RepublicClient, signTx, msgSend } from 'republic-sdk';
 
 // Generate a new key
 const key = RepublicKey.generate();
@@ -52,12 +52,13 @@ const msg = msgSend(key.getAddress(), 'rai1recipient...', [
 ]);
 
 const accountInfo = await client.getAccountInfo(key.getAddress());
-const signedTx = signTx(key, [msg], {
+// signTx returns base64-encoded protobuf TxRaw
+const txBytes = signTx(key, [msg], {
   accountNumber: accountInfo.accountNumber,
   sequence: accountInfo.sequence,
 });
 
-const result = await client.broadcastTx(encodeTx(signedTx));
+const result = await client.broadcastTx(txBytes);
 console.log('TX Hash:', result.hash);
 ```
 
@@ -71,7 +72,6 @@ const client = new RepublicClient();
 const jobs = new JobManager(client, key);
 
 const { txResponse, jobId } = await jobs.submitAndWait({
-  from: key.getAddress(),
   targetValidator: 'raivaloper1...',
   executionImage: 'republic-llm-inference:latest',
   verificationImage: 'example-verification:latest',
@@ -187,8 +187,7 @@ republic-sdk status <job-id> --watch
 | `msgUndelegate(delegator, validator, amount)` | Build MsgUndelegate |
 | `msgRedelegate(delegator, src, dst, amount)` | Build MsgBeginRedelegate |
 | `msgSubmitJob(params)` | Build MsgSubmitJob |
-| `signTx(key, messages, options)` | Sign a transaction |
-| `encodeTx(signedTx)` | Encode for broadcasting |
+| `signTx(key, messages, options)` | Sign and encode tx (returns base64 TxRaw) |
 
 ### JobManager
 

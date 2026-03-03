@@ -222,11 +222,10 @@ export function encodeAuthInfo(
     varintField(3, sequence),
   );
 
-  // Fee { repeated Coin amount = 1, uint64 gas_limit = 3 }
-  // Note: field 2 is "string gas" (deprecated), field 3 is gas_limit
+  // Fee { repeated Coin amount = 1, uint64 gas_limit = 2, string payer = 3, string granter = 4 }
   const feeEncoded = rawMessage(
     ...fee.amount.map((c) => messageField(1, ...splitCoin(c))),
-    varintField(3, BigInt(fee.gasLimit)),
+    varintField(2, BigInt(fee.gasLimit)),
   );
 
   return rawMessage(

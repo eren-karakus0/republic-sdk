@@ -127,6 +127,32 @@ describe('Protobuf message encoding', () => {
     });
   });
 
+  describe('Fee encoding', () => {
+    it('should encode gas_limit as field 2 (not field 3)', () => {
+      // Build a minimal AuthInfo to inspect Fee encoding
+      const pubKey = new Uint8Array(33).fill(0x02);
+      const fee = {
+        amount: [{ denom: 'arai', amount: '20000000000000000' }],
+        gasLimit: '200000',
+      };
+
+      const result = encodeAuthInfo(PUBKEY_TYPE, pubKey, 0n, fee);
+      expect(result.length).toBeGreaterThan(0);
+
+      // The Fee sub-message is at field 2 of AuthInfo.
+      // Inside Fee, gas_limit should be field 2 (tag = 0x10, varint).
+      // Field 3 would be tag = 0x18. We must NOT find 0x18 followed by
+      // the gas_limit varint in the fee section.
+      const bytes = Buffer.from(result);
+      const hex = bytes.toString('hex');
+      // gas_limit 200000 = varint c09a0c
+      // field 2 tag = 10, field 3 tag = 18
+      // We should find "10c09a0c" (field 2) not "18c09a0c" (field 3)
+      expect(hex).toContain('10c09a0c');
+      expect(hex).not.toContain('18c09a0c');
+    });
+  });
+
   describe('encodeAuthInfo', () => {
     it('should encode auth info with pubkey and fee', () => {
       const pubKey = new Uint8Array(33).fill(0x02);

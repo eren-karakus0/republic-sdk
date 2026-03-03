@@ -44,19 +44,10 @@ function getKey(name: string): RepublicKey {
   return RepublicKey.fromPrivateKey(entry.privateKey);
 }
 
-function parseGas(value: string): number {
-  const n = parseInt(value, 10);
-  if (isNaN(n) || n <= 0) {
-    console.error(`Invalid gas limit: "${value}". Must be a positive integer.`);
-    process.exit(1);
-  }
-  return n;
-}
-
-function parseInterval(value: string): number {
-  const n = parseInt(value, 10);
-  if (isNaN(n) || n < 100) {
-    console.error(`Invalid interval: "${value}". Must be >= 100ms.`);
+function parsePositiveInt(value: string, label: string, min = 1): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < min) {
+    console.error(`Invalid ${label}: "${value}". Must be an integer >= ${min}.`);
     process.exit(1);
   }
   return n;
@@ -273,7 +264,7 @@ program
       const txBytes = signTx(key, [msg], {
         accountNumber: accountInfo.accountNumber,
         sequence: accountInfo.sequence,
-        gasLimit: parseGas(opts.gas),
+        gasLimit: parsePositiveInt(opts.gas, 'gas limit'),
         feeAmount: opts.fees,
         memo: opts.memo,
       });
@@ -318,7 +309,7 @@ program
       const txBytes = signTx(key, [msg], {
         accountNumber: accountInfo.accountNumber,
         sequence: accountInfo.sequence,
-        gasLimit: parseGas(opts.gas),
+        gasLimit: parsePositiveInt(opts.gas, 'gas limit'),
         feeAmount: opts.fees,
         memo: opts.memo,
       });
@@ -359,7 +350,7 @@ program
       const key = getKey(opts.from);
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const jobManager = new JobManager(client, key);
-      const gasLimit = parseGas(opts.gas);
+      const gasLimit = parsePositiveInt(opts.gas, 'gas limit');
 
       if (opts.wait) {
         const { txResponse, jobId } = await jobManager.submitAndWait({
@@ -414,7 +405,7 @@ program
       const jobManager = new JobManager(client, key);
 
       if (opts.watch) {
-        const interval = parseInterval(opts.interval);
+        const interval = parsePositiveInt(opts.interval, 'interval', 100);
         for await (const status of jobManager.watchJob(jobId, interval)) {
           console.log(`[${new Date().toISOString()}] Status: ${status.status}`);
           if (status.result) {
