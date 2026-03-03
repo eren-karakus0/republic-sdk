@@ -6,11 +6,7 @@ export { JobManager } from './job.js';
 // Transaction builders
 export {
   signTx,
-  encodeTx,
-  buildTxBody,
-  buildAuthInfo,
   buildFee,
-  createSignDoc,
   msgSend,
   msgDelegate,
   msgUndelegate,
@@ -19,8 +15,19 @@ export {
 } from './transaction.js';
 export type { TxOptions } from './transaction.js';
 
+// Protobuf encoding (advanced usage)
+export {
+  encodeTxBody,
+  encodeAuthInfo,
+  encodeSignDoc,
+  encodeTxRaw,
+  encodeCoin,
+  encodeAny,
+  encodeMessage,
+} from './protobuf.js';
+
 // Constants
-export { REPUBLIC_TESTNET, MSG_TYPES, QUERY_PATHS, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from './constants.js';
+export { REPUBLIC_TESTNET, MSG_TYPES, QUERY_PATHS, PUBKEY_TYPE, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from './constants.js';
 
 // Types
 export type {
@@ -28,9 +35,6 @@ export type {
   AccountInfo,
   Coin,
   Fee,
-  TxBody,
-  AuthInfo,
-  SignedTx,
   BroadcastResult,
   TxResponse,
   TxEvent,

@@ -28,38 +28,6 @@ export interface Fee {
   granter?: string;
 }
 
-export interface TxBody {
-  messages: TxMessage[];
-  memo: string;
-  timeoutHeight: string;
-  extensionOptions: unknown[];
-  nonCriticalExtensionOptions: unknown[];
-}
-
-export interface SignerInfo {
-  publicKey: {
-    '@type': string;
-    key: string;
-  };
-  modeInfo: {
-    single: {
-      mode: string;
-    };
-  };
-  sequence: string;
-}
-
-export interface AuthInfo {
-  signerInfos: SignerInfo[];
-  fee: Fee;
-}
-
-export interface SignedTx {
-  body: TxBody;
-  auth_info: AuthInfo;
-  signatures: string[];
-}
-
 export interface BroadcastResult {
   hash: string;
   code: number;
@@ -145,7 +113,6 @@ export interface MsgSubmitJob extends TxMessage {
 // Job types
 
 export interface JobSubmitParams {
-  from: string;
   targetValidator: string;
   executionImage: string;
   verificationImage: string;

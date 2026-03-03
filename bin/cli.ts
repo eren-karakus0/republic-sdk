@@ -5,7 +5,7 @@ import { homedir } from 'os';
 import { RepublicKey } from '../src/key.js';
 import { RepublicClient } from '../src/client.js';
 import { JobManager } from '../src/job.js';
-import { signTx, encodeTx, msgSend, msgDelegate } from '../src/transaction.js';
+import { signTx, msgSend, msgDelegate } from '../src/transaction.js';
 import { REPUBLIC_TESTNET, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from '../src/constants.js';
 import type { KeyStore } from '../src/types.js';
 
@@ -42,6 +42,24 @@ function getKey(name: string): RepublicKey {
     process.exit(1);
   }
   return RepublicKey.fromPrivateKey(entry.privateKey);
+}
+
+function parseGas(value: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n <= 0) {
+    console.error(`Invalid gas limit: "${value}". Must be a positive integer.`);
+    process.exit(1);
+  }
+  return n;
+}
+
+function parseInterval(value: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n < 100) {
+    console.error(`Invalid interval: "${value}". Must be >= 100ms.`);
+    process.exit(1);
+  }
+  return n;
 }
 
 const program = new Command();
@@ -125,18 +143,23 @@ keys
       process.exit(1);
     }
 
-    const key = RepublicKey.fromPrivateKey(privateKeyHex);
-    const address = key.getAddress();
+    try {
+      const key = RepublicKey.fromPrivateKey(privateKeyHex);
+      const address = key.getAddress();
 
-    store[name] = {
-      privateKey: key.privateKey,
-      address,
-      publicKey: key.publicKey,
-    };
-    saveKeys(store);
+      store[name] = {
+        privateKey: key.privateKey,
+        address,
+        publicKey: key.publicKey,
+      };
+      saveKeys(store);
 
-    console.log(`Key imported: ${name}`);
-    console.log(`Address:      ${address}`);
+      console.log(`Key imported: ${name}`);
+      console.log(`Address:      ${address}`);
+    } catch (err) {
+      console.error('Invalid private key:', (err as Error).message);
+      process.exit(1);
+    }
   });
 
 keys
@@ -175,9 +198,8 @@ program
   .description('Query node status')
   .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
   .action(async (opts: { rpc: string }) => {
-    const client = new RepublicClient({ rpc: opts.rpc });
-
     try {
+      const client = new RepublicClient({ rpc: opts.rpc });
       const status = await client.getStatus();
       console.log(`Network:      ${status.nodeInfo.network}`);
       console.log(`Moniker:      ${status.nodeInfo.moniker}`);
@@ -199,9 +221,8 @@ program
   .option('--rpc <endpoint>', 'RPC endpoint', REPUBLIC_TESTNET.rpc)
   .option('--rest <endpoint>', 'REST endpoint', REPUBLIC_TESTNET.rest)
   .action(async (address: string, opts: { rpc: string; rest: string }) => {
-    const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-
     try {
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const balances = await client.getBalances(address);
 
       if (balances.length === 0) {
@@ -210,7 +231,6 @@ program
       }
 
       for (const coin of balances) {
-        // Convert from arai (10^18) to RAI for display
         const amount = BigInt(coin.amount);
         const whole = amount / BigInt(10 ** 18);
         const frac = amount % BigInt(10 ** 18);
@@ -240,31 +260,29 @@ program
     from: string; to: string; amount: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
   }) => {
-    const key = getKey(opts.from);
-    const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-    const address = key.getAddress();
-    const accountInfo = await client.getAccountInfo(address);
-
-    const msg = msgSend(address, opts.to, [
-      { denom: REPUBLIC_TESTNET.denom, amount: opts.amount },
-    ]);
-
-    const signedTx = signTx(key, [msg], {
-      accountNumber: accountInfo.accountNumber,
-      sequence: accountInfo.sequence,
-      gasLimit: parseInt(opts.gas),
-      feeAmount: opts.fees,
-      memo: opts.memo,
-    });
-
-    const txBytes = encodeTx(signedTx);
-
     try {
+      const key = getKey(opts.from);
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const address = key.getAddress();
+      const accountInfo = await client.getAccountInfo(address);
+
+      const msg = msgSend(address, opts.to, [
+        { denom: REPUBLIC_TESTNET.denom, amount: opts.amount },
+      ]);
+
+      const txBytes = signTx(key, [msg], {
+        accountNumber: accountInfo.accountNumber,
+        sequence: accountInfo.sequence,
+        gasLimit: parseGas(opts.gas),
+        feeAmount: opts.fees,
+        memo: opts.memo,
+      });
+
       const result = await client.broadcastTx(txBytes);
       console.log(`TX Hash: ${result.hash}`);
       console.log(`Code:    ${result.code}`);
     } catch (err) {
-      console.error('Broadcast failed:', (err as Error).message);
+      console.error('Failed:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -286,32 +304,30 @@ program
     from: string; validator: string; amount: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
   }) => {
-    const key = getKey(opts.from);
-    const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-    const address = key.getAddress();
-    const accountInfo = await client.getAccountInfo(address);
-
-    const msg = msgDelegate(address, opts.validator, {
-      denom: REPUBLIC_TESTNET.denom,
-      amount: opts.amount,
-    });
-
-    const signedTx = signTx(key, [msg], {
-      accountNumber: accountInfo.accountNumber,
-      sequence: accountInfo.sequence,
-      gasLimit: parseInt(opts.gas),
-      feeAmount: opts.fees,
-      memo: opts.memo,
-    });
-
-    const txBytes = encodeTx(signedTx);
-
     try {
+      const key = getKey(opts.from);
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const address = key.getAddress();
+      const accountInfo = await client.getAccountInfo(address);
+
+      const msg = msgDelegate(address, opts.validator, {
+        denom: REPUBLIC_TESTNET.denom,
+        amount: opts.amount,
+      });
+
+      const txBytes = signTx(key, [msg], {
+        accountNumber: accountInfo.accountNumber,
+        sequence: accountInfo.sequence,
+        gasLimit: parseGas(opts.gas),
+        feeAmount: opts.fees,
+        memo: opts.memo,
+      });
+
       const result = await client.broadcastTx(txBytes);
       console.log(`TX Hash: ${result.hash}`);
       console.log(`Code:    ${result.code}`);
     } catch (err) {
-      console.error('Broadcast failed:', (err as Error).message);
+      console.error('Failed:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -339,21 +355,21 @@ program
     feeAmount: string; rpc: string; rest: string;
     gas: string; fees: string; wait: boolean;
   }) => {
-    const key = getKey(opts.from);
-    const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-    const jobManager = new JobManager(client, key);
-
     try {
+      const key = getKey(opts.from);
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const jobManager = new JobManager(client, key);
+      const gasLimit = parseGas(opts.gas);
+
       if (opts.wait) {
         const { txResponse, jobId } = await jobManager.submitAndWait({
-          from: opts.from,
           targetValidator: opts.validator,
           executionImage: opts.image,
           verificationImage: opts.verification,
           uploadEndpoint: opts.uploadEndpoint,
           fetchEndpoint: opts.fetchEndpoint,
           feeAmount: opts.feeAmount,
-          gasLimit: parseInt(opts.gas),
+          gasLimit,
           fees: opts.fees,
         });
 
@@ -362,14 +378,13 @@ program
         if (jobId) console.log(`Job ID:  ${jobId}`);
       } else {
         const result = await jobManager.submitJob({
-          from: opts.from,
           targetValidator: opts.validator,
           executionImage: opts.image,
           verificationImage: opts.verification,
           uploadEndpoint: opts.uploadEndpoint,
           fetchEndpoint: opts.fetchEndpoint,
           feeAmount: opts.feeAmount,
-          gasLimit: parseInt(opts.gas),
+          gasLimit,
           fees: opts.fees,
         });
 
@@ -393,14 +408,14 @@ program
   .action(async (jobId: string, opts: {
     rpc: string; rest: string; watch: boolean; interval: string;
   }) => {
-    const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
-    // Use a dummy key for read-only operations
-    const key = RepublicKey.generate();
-    const jobManager = new JobManager(client, key);
-
     try {
+      const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
+      const key = RepublicKey.generate();
+      const jobManager = new JobManager(client, key);
+
       if (opts.watch) {
-        for await (const status of jobManager.watchJob(jobId, parseInt(opts.interval))) {
+        const interval = parseInterval(opts.interval);
+        for await (const status of jobManager.watchJob(jobId, interval)) {
           console.log(`[${new Date().toISOString()}] Status: ${status.status}`);
           if (status.result) {
             console.log(`Result: ${status.result}`);

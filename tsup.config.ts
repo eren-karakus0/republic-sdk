@@ -8,13 +8,15 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
     outDir: 'dist',
+    outExtension({ format }) {
+      return { js: format === 'cjs' ? '.cjs' : '.js' };
+    },
   },
   {
     entry: ['bin/cli.ts'],
-    format: ['esm'],
+    format: ['cjs'],
     banner: { js: '#!/usr/bin/env node' },
     outDir: 'dist',
-    noExternal: [/(.*)/],
     platform: 'node',
   },
 ]);

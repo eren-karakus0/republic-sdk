@@ -10,15 +10,30 @@ secp256k1.etc.hmacSha256Sync = (k, ...m) => {
   return hmac(sha256, k, secp256k1.etc.concatBytes(...m));
 };
 
+// secp256k1 curve order
+const CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+
 export class RepublicKey {
   private readonly privKey: Uint8Array;
 
   constructor(privateKey?: string | Uint8Array) {
     if (privateKey) {
-      this.privKey =
+      const bytes =
         typeof privateKey === 'string'
           ? hexToBytes(privateKey)
           : privateKey;
+
+      if (bytes.length !== 32) {
+        throw new Error(`Invalid private key length: expected 32 bytes, got ${bytes.length}`);
+      }
+
+      // Validate key is within secp256k1 curve range (0 < key < curve order)
+      const keyBigInt = bytesToBigInt(bytes);
+      if (keyBigInt === 0n || keyBigInt >= CURVE_ORDER) {
+        throw new Error('Private key is out of secp256k1 curve range');
+      }
+
+      this.privKey = bytes;
     } else {
       this.privKey = randomBytes(32);
     }
@@ -51,7 +66,7 @@ export class RepublicKey {
 
   /**
    * Derive bech32 address using ethsecp256k1 method:
-   * Keccak256(uncompressed_pubkey[1:]) → last 20 bytes → bech32
+   * Keccak256(uncompressed_pubkey[1:]) -> last 20 bytes -> bech32
    */
   getAddress(prefix = 'rai'): string {
     const uncompressed = this.uncompressedPublicKey;
@@ -109,9 +124,17 @@ export class RepublicKey {
 
 export function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+
+  if (clean.length % 2 !== 0) {
+    throw new Error('Hex string must have even length');
+  }
+  if (!/^[0-9a-fA-F]*$/.test(clean)) {
+    throw new Error('Invalid hex character in string');
+  }
+
   const bytes = new Uint8Array(clean.length / 2);
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+    bytes[i] = parseInt(clean.substring(i * 2, i * 2 + 2), 16);
   }
   return bytes;
 }
@@ -130,4 +153,12 @@ export function addressToBytes(bech32Address: string): Uint8Array {
 export function bytesToAddress(bytes: Uint8Array, prefix = 'rai'): string {
   const words = bech32.toWords(bytes);
   return bech32.encode(prefix, words);
+}
+
+function bytesToBigInt(bytes: Uint8Array): bigint {
+  let result = 0n;
+  for (const byte of bytes) {
+    result = (result << 8n) | BigInt(byte);
+  }
+  return result;
 }

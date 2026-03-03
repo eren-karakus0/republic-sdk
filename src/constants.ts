@@ -24,5 +24,7 @@ export const QUERY_PATHS = {
   JOB: '/republic.computevalidation.v1.Query/Job',
 } as const;
 
+export const PUBKEY_TYPE = '/cosmos.evm.crypto.v1.ethsecp256k1.PubKey';
+
 export const DEFAULT_GAS_LIMIT = 200000;
 export const DEFAULT_FEE_AMOUNT = '20000000000000000';

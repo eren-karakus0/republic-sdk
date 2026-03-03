@@ -1,7 +1,12 @@
 import { RepublicKey } from './key.js';
-import { REPUBLIC_TESTNET, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT, MSG_TYPES } from './constants.js';
+import { REPUBLIC_TESTNET, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT, MSG_TYPES, PUBKEY_TYPE } from './constants.js';
+import {
+  encodeTxBody,
+  encodeAuthInfo,
+  encodeSignDoc,
+  encodeTxRaw,
+} from './protobuf.js';
 import type {
-  AuthInfo,
   Coin,
   Fee,
   MsgSend,
@@ -9,8 +14,6 @@ import type {
   MsgUndelegate,
   MsgBeginRedelegate,
   MsgSubmitJob,
-  SignedTx,
-  TxBody,
   TxMessage,
 } from './types.js';
 
@@ -24,46 +27,7 @@ export interface TxOptions {
   memo?: string;
 }
 
-/** Build a Cosmos SDK transaction body */
-export function buildTxBody(
-  messages: TxMessage[],
-  memo = '',
-): TxBody {
-  return {
-    messages,
-    memo,
-    timeoutHeight: '0',
-    extensionOptions: [],
-    nonCriticalExtensionOptions: [],
-  };
-}
-
-/** Build auth info with signer and fee */
-export function buildAuthInfo(
-  publicKeyBase64: string,
-  sequence: string,
-  fee: Fee,
-): AuthInfo {
-  return {
-    signerInfos: [
-      {
-        publicKey: {
-          '@type': '/cosmos.crypto.secp256k1.PubKey',
-          key: publicKeyBase64,
-        },
-        modeInfo: {
-          single: {
-            mode: 'SIGN_MODE_DIRECT',
-          },
-        },
-        sequence,
-      },
-    ],
-    fee,
-  };
-}
-
-/** Create fee object */
+/** Build fee object */
 export function buildFee(
   gasLimit = DEFAULT_GAS_LIMIT,
   amount: string = DEFAULT_FEE_AMOUNT,
@@ -78,35 +42,20 @@ export function buildFee(
 }
 
 /**
- * Create a SignDoc JSON for signing.
- * This follows the Cosmos SDK SIGN_MODE_DIRECT approach using JSON encoding
- * (compatible with the Python SDK).
- */
-export function createSignDoc(
-  txBody: TxBody,
-  authInfo: AuthInfo,
-  chainId: string,
-  accountNumber: string,
-): Record<string, unknown> {
-  return {
-    body: txBody,
-    auth_info: authInfo,
-    chain_id: chainId,
-    account_number: accountNumber,
-  };
-}
-
-/**
- * Sign a transaction.
- * 1. Create SignDoc JSON
- * 2. SHA256 hash it
- * 3. Sign with secp256k1
+ * Sign a transaction using protobuf-encoded SIGN_MODE_DIRECT.
+ *
+ * Flow:
+ *   1. Encode TxBody → bodyBytes (protobuf)
+ *   2. Encode AuthInfo → authInfoBytes (protobuf)
+ *   3. Encode SignDoc(bodyBytes, authInfoBytes, chainId, accountNumber) → protobuf
+ *   4. SHA256 + secp256k1 sign the SignDoc bytes
+ *   5. Return TxRaw(bodyBytes, authInfoBytes, signature) as base64
  */
 export function signTx(
   key: RepublicKey,
   messages: TxMessage[],
   options: TxOptions,
-): SignedTx {
+): string {
   const {
     chainId = REPUBLIC_TESTNET.chainId,
     accountNumber,
@@ -117,29 +66,33 @@ export function signTx(
     memo = '',
   } = options;
 
-  const txBody = buildTxBody(messages, memo);
   const fee = buildFee(gasLimit, feeAmount, feeDenom);
-  const authInfo = buildAuthInfo(key.publicKeyBase64, sequence, fee);
 
-  // Create sign doc and sign it
-  const signDoc = createSignDoc(txBody, authInfo, chainId, accountNumber);
-  const signDocBytes = new TextEncoder().encode(
-    JSON.stringify(sortObjectKeys(signDoc)),
+  // 1. Encode TxBody
+  const bodyBytes = encodeTxBody(messages, memo);
+
+  // 2. Encode AuthInfo
+  const authInfoBytes = encodeAuthInfo(
+    PUBKEY_TYPE,
+    key.compressedPublicKey,
+    BigInt(sequence),
+    fee,
+  );
+
+  // 3. Encode SignDoc and sign
+  const signDocBytes = encodeSignDoc(
+    bodyBytes,
+    authInfoBytes,
+    chainId,
+    BigInt(accountNumber),
   );
   const signature = key.sign(signDocBytes);
-  const signatureBase64 = Buffer.from(signature).toString('base64');
 
-  return {
-    body: txBody,
-    auth_info: authInfo,
-    signatures: [signatureBase64],
-  };
-}
+  // 4. Encode TxRaw
+  const txRaw = encodeTxRaw(bodyBytes, authInfoBytes, signature);
 
-/** Encode a signed transaction to base64 for broadcasting */
-export function encodeTx(signedTx: SignedTx): string {
-  const txJson = JSON.stringify(signedTx);
-  return Buffer.from(txJson).toString('base64');
+  // 5. Return base64 for broadcasting
+  return Buffer.from(txRaw).toString('base64');
 }
 
 // ─── Message Builders ─────────────────────────────────────────────────────────
@@ -217,18 +170,4 @@ export function msgSubmitJob(params: {
     fetch_endpoint: params.fetchEndpoint,
     fee_amount: params.feeAmount,
   };
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Sort object keys recursively for deterministic JSON serialization */
-function sortObjectKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(sortObjectKeys);
-
-  const sorted: Record<string, unknown> = {};
-  for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
-    sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key]);
-  }
-  return sorted;
 }

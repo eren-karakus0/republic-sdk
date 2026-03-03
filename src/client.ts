@@ -132,24 +132,43 @@ export class RepublicClient {
       commit: 'broadcast_tx_commit',
     };
 
-    const result = await this.rpcCall<{
-      hash: string;
-      code: number;
-      log: string;
-      codespace?: string;
-    }>(methodMap[mode], { tx: txBytes });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await this.rpcCall<any>(methodMap[mode], { tx: txBytes });
 
-    if (result.code !== 0) {
-      throw new Error(
-        `Broadcast failed (code ${result.code}): ${result.log}`,
-      );
+    // broadcast_tx_commit has a different response shape:
+    //   { hash, height, check_tx: { code, log }, deliver_tx: { code, log } }
+    // broadcast_tx_sync / async:
+    //   { hash, code, log, codespace }
+    if (mode === 'commit') {
+      const checkCode = raw.check_tx?.code ?? 0;
+      const deliverCode = raw.deliver_tx?.code ?? 0;
+      const code = checkCode !== 0 ? checkCode : deliverCode;
+      const log = checkCode !== 0
+        ? (raw.check_tx?.log ?? '')
+        : (raw.deliver_tx?.log ?? '');
+
+      if (code !== 0) {
+        throw new Error(`Broadcast failed (code ${code}): ${log}`);
+      }
+
+      return {
+        hash: raw.hash ?? '',
+        code: 0,
+        log,
+      };
+    }
+
+    const code = raw.code ?? 0;
+    const log = raw.log ?? '';
+    if (code !== 0) {
+      throw new Error(`Broadcast failed (code ${code}): ${log}`);
     }
 
     return {
-      hash: result.hash,
-      code: result.code,
-      log: result.log,
-      codespace: result.codespace,
+      hash: raw.hash ?? '',
+      code,
+      log,
+      codespace: raw.codespace,
     };
   }
 

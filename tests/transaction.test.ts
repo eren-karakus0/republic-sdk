@@ -2,9 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { RepublicKey } from '../src/key';
 import {
   signTx,
-  encodeTx,
-  buildTxBody,
-  buildAuthInfo,
   buildFee,
   msgSend,
   msgDelegate,
@@ -72,112 +69,78 @@ describe('Message builders', () => {
   });
 });
 
-describe('Transaction building', () => {
-  it('buildTxBody should create valid body', () => {
-    const msg = msgSend('rai1a', 'rai1b', [
-      { denom: 'arai', amount: '100' },
-    ]);
-    const body = buildTxBody([msg], 'test memo');
-
-    expect(body.messages).toHaveLength(1);
-    expect(body.memo).toBe('test memo');
-    expect(body.timeoutHeight).toBe('0');
-  });
-
-  it('buildFee should create valid fee', () => {
-    const fee = buildFee(200000, '20000000000000000', 'arai');
-    expect(fee.gasLimit).toBe('200000');
-    expect(fee.amount[0].amount).toBe('20000000000000000');
-  });
-
-  it('buildAuthInfo should create valid auth info', () => {
-    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
+describe('buildFee', () => {
+  it('should create valid fee with defaults', () => {
     const fee = buildFee();
-    const authInfo = buildAuthInfo(key.publicKeyBase64, '5', fee);
+    expect(fee.gasLimit).toBe('200000');
+    expect(fee.amount[0].denom).toBe('arai');
+  });
 
-    expect(authInfo.signerInfos).toHaveLength(1);
-    expect(authInfo.signerInfos[0].sequence).toBe('5');
-    expect(authInfo.signerInfos[0].publicKey['@type']).toBe(
-      '/cosmos.crypto.secp256k1.PubKey',
-    );
-    expect(authInfo.signerInfos[0].modeInfo.single.mode).toBe(
-      'SIGN_MODE_DIRECT',
-    );
+  it('should create valid fee with custom values', () => {
+    const fee = buildFee(300000, '50000', 'arai');
+    expect(fee.gasLimit).toBe('300000');
+    expect(fee.amount[0].amount).toBe('50000');
   });
 });
 
-describe('Transaction signing', () => {
-  it('should sign a transaction and produce valid output', () => {
+describe('Transaction signing (protobuf)', () => {
+  it('should return a base64-encoded TxRaw', () => {
     const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
     const msg = msgSend(key.getAddress(), 'rai1receiver', [
       { denom: 'arai', amount: '1000000' },
     ]);
 
-    const signedTx = signTx(key, [msg], {
+    const txBytes = signTx(key, [msg], {
       accountNumber: '42',
       sequence: '7',
       gasLimit: 200000,
       feeAmount: '20000000000000000',
     });
-
-    // Verify structure
-    expect(signedTx.body.messages).toHaveLength(1);
-    expect(signedTx.auth_info.signerInfos).toHaveLength(1);
-    expect(signedTx.signatures).toHaveLength(1);
-
-    // Signature should be base64 encoded
-    const sigBytes = Buffer.from(signedTx.signatures[0], 'base64');
-    expect(sigBytes).toHaveLength(64); // compact signature
-
-    // Should be deterministic
-    const signedTx2 = signTx(key, [msg], {
-      accountNumber: '42',
-      sequence: '7',
-      gasLimit: 200000,
-      feeAmount: '20000000000000000',
-    });
-    expect(signedTx.signatures[0]).toBe(signedTx2.signatures[0]);
-  });
-
-  it('should produce different signatures for different sequences', () => {
-    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
-    const msg = msgSend(key.getAddress(), 'rai1receiver', [
-      { denom: 'arai', amount: '1000000' },
-    ]);
-
-    const tx1 = signTx(key, [msg], {
-      accountNumber: '42',
-      sequence: '7',
-    });
-    const tx2 = signTx(key, [msg], {
-      accountNumber: '42',
-      sequence: '8',
-    });
-
-    expect(tx1.signatures[0]).not.toBe(tx2.signatures[0]);
-  });
-});
-
-describe('Transaction encoding', () => {
-  it('should encode to base64', () => {
-    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
-    const msg = msgSend(key.getAddress(), 'rai1receiver', [
-      { denom: 'arai', amount: '100' },
-    ]);
-
-    const signedTx = signTx(key, [msg], {
-      accountNumber: '0',
-      sequence: '0',
-    });
-
-    const encoded = encodeTx(signedTx);
 
     // Should be valid base64
-    const decoded = Buffer.from(encoded, 'base64').toString();
-    const parsed = JSON.parse(decoded);
+    expect(typeof txBytes).toBe('string');
+    const raw = Buffer.from(txBytes, 'base64');
+    expect(raw.length).toBeGreaterThan(0);
 
-    expect(parsed.body).toBeDefined();
-    expect(parsed.auth_info).toBeDefined();
-    expect(parsed.signatures).toBeDefined();
+    // First byte should be a protobuf field tag (field 1, wire type 2 = 0x0a)
+    expect(raw[0]).toBe(0x0a);
+  });
+
+  it('should be deterministic (same inputs -> same output)', () => {
+    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
+    const msg = msgSend(key.getAddress(), 'rai1receiver', [
+      { denom: 'arai', amount: '1000000' },
+    ]);
+    const opts = { accountNumber: '42', sequence: '7' };
+
+    const tx1 = signTx(key, [msg], opts);
+    const tx2 = signTx(key, [msg], opts);
+    expect(tx1).toBe(tx2);
+  });
+
+  it('should produce different output for different sequences', () => {
+    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
+    const msg = msgSend(key.getAddress(), 'rai1receiver', [
+      { denom: 'arai', amount: '1000000' },
+    ]);
+
+    const tx1 = signTx(key, [msg], { accountNumber: '42', sequence: '7' });
+    const tx2 = signTx(key, [msg], { accountNumber: '42', sequence: '8' });
+    expect(tx1).not.toBe(tx2);
+  });
+
+  it('should produce different output for different messages', () => {
+    const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
+    const msg1 = msgSend(key.getAddress(), 'rai1a', [
+      { denom: 'arai', amount: '100' },
+    ]);
+    const msg2 = msgSend(key.getAddress(), 'rai1b', [
+      { denom: 'arai', amount: '200' },
+    ]);
+    const opts = { accountNumber: '0', sequence: '0' };
+
+    const tx1 = signTx(key, [msg1], opts);
+    const tx2 = signTx(key, [msg2], opts);
+    expect(tx1).not.toBe(tx2);
   });
 });

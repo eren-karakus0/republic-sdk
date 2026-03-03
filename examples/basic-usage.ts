@@ -10,7 +10,6 @@ import {
   RepublicKey,
   RepublicClient,
   signTx,
-  encodeTx,
   msgSend,
   msgDelegate,
   REPUBLIC_TESTNET,
@@ -28,8 +27,6 @@ async function main() {
 
   // 2. Connect to Republic testnet
   const client = new RepublicClient();
-  // Or with custom endpoint:
-  // const client = new RepublicClient({ rpc: 'http://localhost:26657' });
 
   // 3. Query node status
   const status = await client.getStatus();
@@ -51,18 +48,18 @@ async function main() {
   ]);
 
   const accountInfo = await client.getAccountInfo(address);
-  const signedTx = signTx(key, [msg], {
+
+  // signTx returns base64-encoded TxRaw bytes (protobuf)
+  const txBytes = signTx(key, [msg], {
     accountNumber: accountInfo.accountNumber,
     sequence: accountInfo.sequence,
     memo: 'Sent via Republic SDK',
   });
 
   console.log('\nSigned TX (not broadcasting - account not funded):');
-  console.log('  Messages:', signedTx.body.messages.length);
-  console.log('  Signature:', signedTx.signatures[0].slice(0, 20) + '...');
+  console.log('  Encoded length:', Buffer.from(txBytes, 'base64').length, 'bytes');
 
   // 6. To broadcast:
-  // const txBytes = encodeTx(signedTx);
   // const result = await client.broadcastTx(txBytes);
   // console.log('TX Hash:', result.hash);
 

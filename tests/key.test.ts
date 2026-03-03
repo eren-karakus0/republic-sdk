@@ -2,15 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { RepublicKey, hexToBytes, bytesToHex, addressToBytes, bytesToAddress } from '../src/key';
 
 describe('RepublicKey', () => {
-  // Known test vector: a fixed private key to validate deterministic output
   const TEST_PRIVATE_KEY =
     'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2';
 
   describe('constructor', () => {
     it('should generate a random key when no argument provided', () => {
       const key = RepublicKey.generate();
-      expect(key.privateKey).toHaveLength(64); // 32 bytes hex
-      expect(key.publicKey).toHaveLength(66); // 33 bytes hex (compressed)
+      expect(key.privateKey).toHaveLength(64);
+      expect(key.publicKey).toHaveLength(66);
     });
 
     it('should import a key from hex string', () => {
@@ -29,6 +28,22 @@ describe('RepublicKey', () => {
       const key1 = RepublicKey.generate();
       const key2 = RepublicKey.generate();
       expect(key1.privateKey).not.toBe(key2.privateKey);
+    });
+
+    it('should reject invalid hex characters', () => {
+      expect(() => RepublicKey.fromPrivateKey('zzzz' + '0'.repeat(60))).toThrow('Invalid hex');
+    });
+
+    it('should reject wrong-length private key', () => {
+      expect(() => RepublicKey.fromPrivateKey('aabb')).toThrow('Invalid private key length');
+    });
+
+    it('should reject zero private key', () => {
+      expect(() => RepublicKey.fromPrivateKey('0'.repeat(64))).toThrow('out of secp256k1 curve range');
+    });
+
+    it('should reject odd-length hex', () => {
+      expect(() => RepublicKey.fromPrivateKey('abc')).toThrow('even length');
     });
   });
 
@@ -50,7 +65,6 @@ describe('RepublicKey', () => {
     it('should return base64-encoded public key', () => {
       const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
       const b64 = key.publicKeyBase64;
-      // Valid base64 string
       expect(Buffer.from(b64, 'base64').length).toBe(33);
     });
   });
@@ -74,7 +88,7 @@ describe('RepublicKey', () => {
       expect(addrBytes).toHaveLength(20);
     });
 
-    it('should be deterministic (same key → same address)', () => {
+    it('should be deterministic (same key -> same address)', () => {
       const key = RepublicKey.fromPrivateKey(TEST_PRIVATE_KEY);
       expect(key.getAddress()).toBe(key.getAddress());
     });
@@ -86,7 +100,7 @@ describe('RepublicKey', () => {
       const message = new TextEncoder().encode('hello republic');
       const signature = key.sign(message);
 
-      expect(signature).toHaveLength(64); // compact signature: r(32) + s(32)
+      expect(signature).toHaveLength(64);
       expect(key.verify(message, signature)).toBe(true);
     });
 

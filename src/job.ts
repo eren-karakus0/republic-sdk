@@ -1,6 +1,6 @@
 import { RepublicClient } from './client.js';
 import { RepublicKey } from './key.js';
-import { signTx, msgSubmitJob, encodeTx } from './transaction.js';
+import { signTx, msgSubmitJob } from './transaction.js';
 import { DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from './constants.js';
 import type { JobSubmitParams, JobStatus, BroadcastResult, TxResponse } from './types.js';
 
@@ -25,7 +25,7 @@ export class JobManager {
       feeAmount: params.feeAmount,
     });
 
-    const signedTx = signTx(this.key, [msg], {
+    const txBytes = signTx(this.key, [msg], {
       chainId: this.client.config.chainId,
       accountNumber: accountInfo.accountNumber,
       sequence: accountInfo.sequence,
@@ -35,7 +35,6 @@ export class JobManager {
       memo: params.memo ?? '',
     });
 
-    const txBytes = encodeTx(signedTx);
     return this.client.broadcastTx(txBytes, 'sync');
   }
 
