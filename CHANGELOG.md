@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.0...republic-sdk-v0.3.1) (2026-03-04)
+
+
+### Features
+
+* add live chain integration tests ([e5096e4](https://github.com/eren-karakus0/republic-sdk/commit/e5096e454fef70091a8a21438c1abf65e5f4554d))
+* add npm publish workflow and update README ([12e9937](https://github.com/eren-karakus0/republic-sdk/commit/12e9937a1c5f394bf66168cb37dc3d5dc9b4c991))
+* encrypted keystore with AES-256-GCM + scrypt KDF ([04bedc3](https://github.com/eren-karakus0/republic-sdk/commit/04bedc3223e8ed64c00c48f4fcfbacd6642ecd7e))
+* initial Republic AI TypeScript SDK ([15be914](https://github.com/eren-karakus0/republic-sdk/commit/15be91467cbb2712520af2677a0120778710d914))
+* **sdk:** v0.2.0 - retry, staking/gov queries, custom errors, CI ([0318b74](https://github.com/eren-karakus0/republic-sdk/commit/0318b742b47bb9ffcc5823e6e7300389d2fe4c3f))
+* v0.3.0 - encrypted keystore, npm publish, integration tests ([28d9bc6](https://github.com/eren-karakus0/republic-sdk/commit/28d9bc67a4561ee4e67954129be2721cad2cd768))
+
+
+### Bug Fixes
+
+* add type module and fix CLI output extension for Node 18 ESM compatibility ([629127b](https://github.com/eren-karakus0/republic-sdk/commit/629127bb3cbff1fc2297b06ef39ec56daae71ea2))
+* audit findings - error handling, input validation, lint scope ([218ef12](https://github.com/eren-karakus0/republic-sdk/commit/218ef124bd486b3a5f41dddf23b1ad3ff96277dd))
+* audit findings - install docs, security contact, issue config ([c1bc9be](https://github.com/eren-karakus0/republic-sdk/commit/c1bc9be4769af4b3fb3f19da95ecd1008c2bf302))
+* bundle ESM-only dependency for CJS compatibility ([97641e2](https://github.com/eren-karakus0/republic-sdk/commit/97641e29eb3053ef3b3873e9cc5dfa9ec29d6971))
+* correct Fee.gas_limit protobuf field number and polish ([6e563f4](https://github.com/eren-karakus0/republic-sdk/commit/6e563f48a0b4585752f3af37aef987ad4c0d14b3))
+* critical fixes for production readiness ([e52e401](https://github.com/eren-karakus0/republic-sdk/commit/e52e40128bc6128beccdf043324fb87af0a4765e))
+* prevent legacy keystore data loss on encrypted key operations ([d89be3d](https://github.com/eren-karakus0/republic-sdk/commit/d89be3d2cabf45f0b75fbc3b7dc0836f5ae060e8))
+* prevent legacy keystore data loss on encrypted key operations ([3297131](https://github.com/eren-karakus0/republic-sdk/commit/329713149e8df99ee3a05bc4d3e106b63af6c4b4))
+* stabilize release-please and sync package-lock.json ([d0c6ce0](https://github.com/eren-karakus0/republic-sdk/commit/d0c6ce0345a764e9bec6f367de1e911540fc819d))
+* stabilize release-please and sync package-lock.json ([d58c184](https://github.com/eren-karakus0/republic-sdk/commit/d58c18498f77c731bdaec0580dbc9d28588e2d02))
+
+
+### Documentation
+
+* restructure examples with runnable CLI scripts ([4c42108](https://github.com/eren-karakus0/republic-sdk/commit/4c42108bd57eb3889cb06b8fe8b3fef69dcb6839))
+* restructure examples with runnable CLI scripts ([d2ad0f4](https://github.com/eren-karakus0/republic-sdk/commit/d2ad0f402faced9d9ac707f22676690fea379426))
+
 ## [0.3.0] - 2026-03-04
 
 ### Added
