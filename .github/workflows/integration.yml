@@ -1,0 +1,28 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly: Monday 06:00 UTC
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:integration
+        env:
+          REPUBLIC_INTEGRATION: '1'
+          REPUBLIC_TEST_KEY: ${{ secrets.REPUBLIC_TEST_KEY }}
+          REPUBLIC_TEST_ADDRESS: ${{ secrets.REPUBLIC_TEST_ADDRESS }}

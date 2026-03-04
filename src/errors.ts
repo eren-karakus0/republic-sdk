@@ -59,3 +59,10 @@ export class AccountNotFoundError extends RepublicError {
     this.name = 'AccountNotFoundError';
   }
 }
+
+export class KeystoreError extends RepublicError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KeystoreError';
+  }
+}
