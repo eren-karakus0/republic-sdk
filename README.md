@@ -22,15 +22,21 @@ Republic AI is a Cosmos SDK-based blockchain with EVM compatibility (ethsecp256k
 
 ## Installation
 
-```bash
-npm install republic-sdk
-```
-
-Or use the CLI directly:
+Install directly from GitHub:
 
 ```bash
-npx republic-sdk node-status
+npm install github:eren-karakus0/republic-sdk
 ```
+
+Or clone and build from source:
+
+```bash
+git clone https://github.com/eren-karakus0/republic-sdk.git
+cd republic-sdk
+npm install && npm run build
+```
+
+<!-- TODO: npm install republic-sdk (after npm publish) -->
 
 ## Quick Start
 

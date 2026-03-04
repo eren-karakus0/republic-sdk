@@ -12,7 +12,7 @@
 If you discover a security vulnerability, please report it responsibly:
 
 1. **Do NOT** open a public GitHub issue.
-2. Email the maintainer directly or use GitHub's private vulnerability reporting feature.
+2. Use [GitHub Security Advisories](https://github.com/eren-karakus0/republic-sdk/security/advisories/new) to report privately.
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
