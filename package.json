@@ -2,11 +2,12 @@
   "name": "republic-sdk",
   "version": "0.2.0",
   "description": "TypeScript SDK for Republic AI blockchain - key management, transaction signing, job submission & CLI",
+  "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "republic-sdk": "./dist/cli.js"
+    "republic-sdk": "./dist/cli.cjs"
   },
   "exports": {
     ".": {

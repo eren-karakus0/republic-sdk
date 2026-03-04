@@ -19,5 +19,8 @@ export default defineConfig([
     banner: { js: '#!/usr/bin/env node' },
     outDir: 'dist',
     platform: 'node',
+    outExtension() {
+      return { js: '.cjs' };
+    },
   },
 ]);
