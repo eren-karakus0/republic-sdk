@@ -24,7 +24,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run tests/integration.test.ts --timeout 60000",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src/ bin/ tests/",
     "prepublishOnly": "npm run build"
   },
