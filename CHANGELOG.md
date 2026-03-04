@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.1...republic-sdk-v0.3.2) (2026-03-04)
+
+
+### Bug Fixes
+
+* chain publish into release-please workflow ([ab49c39](https://github.com/eren-karakus0/republic-sdk/commit/ab49c39557105107c5d55a1ca73e533344612fb5))
+* chain publish step into release-please workflow ([f7a005a](https://github.com/eren-karakus0/republic-sdk/commit/f7a005a0f404b6fda97d7455b6af2cac89af0c9e))
+
 ## [0.3.1](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.0...republic-sdk-v0.3.1) (2026-03-04)
 
 
