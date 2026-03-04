@@ -132,7 +132,7 @@ const program = new Command();
 program
   .name('republic-sdk')
   .description('CLI for Republic AI blockchain')
-  .version('0.2.0');
+  .version('0.3.0');
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
 

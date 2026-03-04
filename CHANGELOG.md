@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-04
+
+### Added
+- Encrypted keystore with AES-256-GCM + scrypt KDF (N=16384, r=8, p=1)
+- Password prompt on key create/import/export/sign operations
+- Automatic legacy plaintext keystore detection
+- `keys migrate` CLI command for plaintext-to-encrypted migration
+- `--no-password` flag and `REPUBLIC_SDK_PASSWORD` env var for CI/automation
+- `KeystoreError` error class for keystore operations
+- `EncryptedKey`, `KeyStoreV2`, `ScryptParams` types
+- npm publish workflow (GitHub Releases → npm with provenance)
+- Live chain integration tests (manual + weekly Monday schedule)
+- `test:integration` npm script
+
+### Changed
+- Key storage format upgraded to v2 (encrypted by default)
+- CLI signing commands now prompt for password to decrypt keys
+- npm version badge added to README
+
+### Security
+- Private keys now encrypted at rest with AES-256-GCM
+- scrypt KDF for password-based key derivation
+- GCM authentication tag prevents ciphertext tampering
+
 ## [0.2.1] - 2026-03-04
 
 ### Changed
