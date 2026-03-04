@@ -13,7 +13,16 @@ export {
   TimeoutError,
   ValidationError,
   AccountNotFoundError,
+  KeystoreError,
 } from './errors.js';
+
+// Keystore
+export {
+  encryptPrivateKey,
+  decryptPrivateKey,
+  migrateLegacyStore,
+  isLegacyKeyStore,
+} from './keystore.js';
 
 // Utilities
 export { sleep, retry, araiToRai, raiToArai } from './utils.js';
@@ -75,4 +84,8 @@ export type {
   JobStatus,
   KeyInfo,
   KeyStore,
+  LegacyKeyStore,
+  EncryptedKey,
+  KeyStoreV2,
+  ScryptParams,
 } from './types.js';

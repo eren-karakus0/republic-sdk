@@ -184,10 +184,47 @@ export interface KeyInfo {
   publicKey: string;
 }
 
-export interface KeyStore {
+/** @deprecated Use KeyStoreV2 for encrypted storage. This type is kept for migration compatibility. */
+export interface LegacyKeyStore {
   [name: string]: {
     privateKey: string;
     address: string;
     publicKey: string;
   };
+}
+
+/** Alias for backward compatibility */
+export type KeyStore = LegacyKeyStore;
+
+// Encrypted keystore types
+
+export interface ScryptParams {
+  n: number;
+  r: number;
+  p: number;
+  dklen: number;
+}
+
+export interface EncryptedKey {
+  version: 1;
+  name: string;
+  address: string;
+  publicKey: string;
+  crypto: {
+    cipher: 'aes-256-gcm';
+    ciphertext: string;
+    cipherparams: {
+      iv: string;
+      tag: string;
+    };
+    kdf: 'scrypt';
+    kdfparams: ScryptParams & {
+      salt: string;
+    };
+  };
+}
+
+export interface KeyStoreV2 {
+  version: 2;
+  keys: Record<string, EncryptedKey>;
 }

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { RepublicKey } from '../src/key.js';
@@ -8,7 +8,16 @@ import { JobManager } from '../src/job.js';
 import { signTx, msgSend, msgDelegate, msgWithdrawReward, msgVote } from '../src/transaction.js';
 import { araiToRai } from '../src/utils.js';
 import { REPUBLIC_TESTNET, DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from '../src/constants.js';
-import type { KeyStore } from '../src/types.js';
+import {
+  encryptPrivateKey,
+  decryptPrivateKey,
+  isLegacyKeyStore,
+  migrateLegacyStore,
+  loadKeyStore,
+  saveKeyStore,
+  promptPassword,
+} from '../src/keystore.js';
+import type { KeyStoreV2, LegacyKeyStore, EncryptedKey } from '../src/types.js';
 
 const CONFIG_DIR = join(homedir(), '.republic-sdk');
 const KEYS_FILE = join(CONFIG_DIR, 'keys.json');
@@ -19,30 +28,94 @@ function ensureConfigDir(): void {
   }
 }
 
-function loadKeys(): KeyStore {
-  if (!existsSync(KEYS_FILE)) return {};
-  const raw = readFileSync(KEYS_FILE, 'utf-8');
-  return JSON.parse(raw) as KeyStore;
+function getPasswordFromEnv(): string | null {
+  return process.env.REPUBLIC_SDK_PASSWORD ?? null;
 }
 
-function saveKeys(store: KeyStore): void {
-  ensureConfigDir();
-  writeFileSync(KEYS_FILE, JSON.stringify(store, null, 2), 'utf-8');
-  try {
-    chmodSync(KEYS_FILE, 0o600);
-  } catch {
-    // chmod may not work on Windows
+async function getPassword(message = 'Enter password: ', opts?: { noPassword?: boolean }): Promise<string> {
+  if (opts?.noPassword) {
+    return '';
   }
+
+  const envPassword = getPasswordFromEnv();
+  if (envPassword) {
+    return envPassword;
+  }
+
+  return promptPassword(message);
 }
 
-function getKey(name: string): RepublicKey {
-  const store = loadKeys();
-  const entry = store[name];
-  if (!entry) {
+function loadKeysV2(): KeyStoreV2 {
+  const data = loadKeyStore(KEYS_FILE);
+  if (data === null) {
+    return { version: 2, keys: {} };
+  }
+
+  if (isLegacyKeyStore(data)) {
+    // Return as-is but wrapped - migration needs password so can't do it here
+    // Callers should check and migrate when needed
+    return { version: 2, keys: {} };
+  }
+
+  return data;
+}
+
+function hasLegacyKeys(): boolean {
+  const data = loadKeyStore(KEYS_FILE);
+  return data !== null && isLegacyKeyStore(data);
+}
+
+function loadLegacyKeys(): LegacyKeyStore {
+  const data = loadKeyStore(KEYS_FILE);
+  if (data !== null && isLegacyKeyStore(data)) {
+    return data;
+  }
+  return {};
+}
+
+async function getDecryptedKey(name: string, opts?: { noPassword?: boolean }): Promise<RepublicKey> {
+  if (opts?.noPassword) {
+    // In no-password mode, check legacy store first
+    const data = loadKeyStore(KEYS_FILE);
+    if (data !== null && isLegacyKeyStore(data)) {
+      const entry = data[name];
+      if (!entry) {
+        console.error(`Key "${name}" not found. Use 'keys list' to see available keys.`);
+        process.exit(1);
+      }
+      return RepublicKey.fromPrivateKey(entry.privateKey);
+    }
+    console.error('--no-password requires plaintext keystore. Use "keys migrate" to migrate or remove --no-password flag.');
+    process.exit(1);
+  }
+
+  const data = loadKeyStore(KEYS_FILE);
+
+  // Legacy store: prompt for migration
+  if (data !== null && isLegacyKeyStore(data)) {
+    console.error('Legacy plaintext keystore detected. Run "republic-sdk keys migrate" to encrypt your keys.');
+    const entry = data[name];
+    if (!entry) {
+      console.error(`Key "${name}" not found.`);
+      process.exit(1);
+    }
+    return RepublicKey.fromPrivateKey(entry.privateKey);
+  }
+
+  const store = data as KeyStoreV2 | null;
+  if (!store || !store.keys[name]) {
     console.error(`Key "${name}" not found. Use 'keys list' to see available keys.`);
     process.exit(1);
   }
-  return RepublicKey.fromPrivateKey(entry.privateKey);
+
+  const password = await getPassword('Enter password to unlock key: ');
+  try {
+    const privateKeyHex = decryptPrivateKey(store.keys[name].crypto, password);
+    return RepublicKey.fromPrivateKey(privateKeyHex);
+  } catch (err) {
+    console.error('Failed to decrypt key:', (err as Error).message);
+    process.exit(1);
+  }
 }
 
 function parsePositiveInt(value: string, label: string, min = 1): number {
@@ -68,9 +141,40 @@ const keys = program.command('keys').description('Key management');
 keys
   .command('create <name>')
   .description('Create a new key pair')
-  .action((name: string) => {
-    const store = loadKeys();
-    if (store[name]) {
+  .option('--no-password', 'Store key without encryption (not recommended)')
+  .action(async (name: string, opts: { noPassword?: boolean }) => {
+    if (opts.noPassword) {
+      console.warn('WARNING: Storing key without encryption. Use only for testing/CI.');
+    }
+
+    // Check for legacy store
+    if (hasLegacyKeys()) {
+      const legacy = loadLegacyKeys();
+      if (legacy[name]) {
+        console.error(`Key "${name}" already exists.`);
+        process.exit(1);
+      }
+
+      if (opts.noPassword) {
+        const key = RepublicKey.generate();
+        legacy[name] = {
+          privateKey: key.privateKey,
+          address: key.getAddress(),
+          publicKey: key.publicKey,
+        };
+        ensureConfigDir();
+        const { writeFileSync, chmodSync } = await import('fs');
+        writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+        try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+        console.log(`Key created: ${name}`);
+        console.log(`Address:     ${key.getAddress()}`);
+        console.log(`Public Key:  ${key.publicKey}`);
+        return;
+      }
+    }
+
+    const store = loadKeysV2();
+    if (store.keys[name]) {
       console.error(`Key "${name}" already exists.`);
       process.exit(1);
     }
@@ -78,12 +182,38 @@ keys
     const key = RepublicKey.generate();
     const address = key.getAddress();
 
-    store[name] = {
-      privateKey: key.privateKey,
-      address,
-      publicKey: key.publicKey,
-    };
-    saveKeys(store);
+    if (opts.noPassword) {
+      // Store in legacy format for no-password mode
+      const legacy = loadLegacyKeys();
+      legacy[name] = {
+        privateKey: key.privateKey,
+        address,
+        publicKey: key.publicKey,
+      };
+      ensureConfigDir();
+      const { writeFileSync, chmodSync } = await import('fs');
+      writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+      try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+    } else {
+      const password = await getPassword('Create password for key: ');
+      const confirmPassword = await getPassword('Confirm password: ');
+      if (password !== confirmPassword) {
+        console.error('Passwords do not match.');
+        process.exit(1);
+      }
+
+      const encrypted: EncryptedKey = {
+        version: 1,
+        name,
+        address,
+        publicKey: key.publicKey,
+        crypto: encryptPrivateKey(key.privateKey, password),
+      };
+
+      store.keys[name] = encrypted;
+      ensureConfigDir();
+      saveKeyStore(KEYS_FILE, store);
+    }
 
     console.log(`Key created: ${name}`);
     console.log(`Address:     ${address}`);
@@ -94,8 +224,24 @@ keys
   .command('list')
   .description('List all stored keys')
   .action(() => {
-    const store = loadKeys();
-    const names = Object.keys(store);
+    const data = loadKeyStore(KEYS_FILE);
+
+    if (data === null) {
+      console.log('No keys found.');
+      return;
+    }
+
+    let names: string[];
+    let getAddress: (name: string) => string;
+
+    if (isLegacyKeyStore(data)) {
+      names = Object.keys(data);
+      getAddress = (n) => data[n].address;
+    } else {
+      const store = data as KeyStoreV2;
+      names = Object.keys(store.keys);
+      getAddress = (n) => store.keys[n].address;
+    }
 
     if (names.length === 0) {
       console.log('No keys found.');
@@ -105,7 +251,7 @@ keys
     console.log('Name'.padEnd(20) + 'Address');
     console.log('-'.repeat(60));
     for (const name of names) {
-      console.log(name.padEnd(20) + store[name].address);
+      console.log(name.padEnd(20) + getAddress(name));
     }
   });
 
@@ -113,38 +259,91 @@ keys
   .command('show <name>')
   .description('Show key details')
   .action((name: string) => {
-    const store = loadKeys();
-    const entry = store[name];
-    if (!entry) {
+    const data = loadKeyStore(KEYS_FILE);
+
+    if (data === null) {
       console.error(`Key "${name}" not found.`);
       process.exit(1);
     }
 
-    console.log(`Name:       ${name}`);
-    console.log(`Address:    ${entry.address}`);
-    console.log(`Public Key: ${entry.publicKey}`);
+    if (isLegacyKeyStore(data)) {
+      const entry = data[name];
+      if (!entry) {
+        console.error(`Key "${name}" not found.`);
+        process.exit(1);
+      }
+      console.log(`Name:       ${name}`);
+      console.log(`Address:    ${entry.address}`);
+      console.log(`Public Key: ${entry.publicKey}`);
+      console.log(`Encrypted:  no`);
+    } else {
+      const store = data as KeyStoreV2;
+      const entry = store.keys[name];
+      if (!entry) {
+        console.error(`Key "${name}" not found.`);
+        process.exit(1);
+      }
+      console.log(`Name:       ${name}`);
+      console.log(`Address:    ${entry.address}`);
+      console.log(`Public Key: ${entry.publicKey}`);
+      console.log(`Encrypted:  yes`);
+    }
   });
 
 keys
   .command('import <name> <private-key>')
   .description('Import a key from hex private key')
-  .action((name: string, privateKeyHex: string) => {
-    const store = loadKeys();
-    if (store[name]) {
-      console.error(`Key "${name}" already exists.`);
-      process.exit(1);
+  .option('--no-password', 'Store key without encryption (not recommended)')
+  .action(async (name: string, privateKeyHex: string, opts: { noPassword?: boolean }) => {
+    if (opts.noPassword) {
+      console.warn('WARNING: Storing key without encryption. Use only for testing/CI.');
     }
 
     try {
       const key = RepublicKey.fromPrivateKey(privateKeyHex);
       const address = key.getAddress();
 
-      store[name] = {
-        privateKey: key.privateKey,
-        address,
-        publicKey: key.publicKey,
-      };
-      saveKeys(store);
+      if (opts.noPassword) {
+        const legacy = loadLegacyKeys();
+        if (legacy[name]) {
+          console.error(`Key "${name}" already exists.`);
+          process.exit(1);
+        }
+        legacy[name] = {
+          privateKey: key.privateKey,
+          address,
+          publicKey: key.publicKey,
+        };
+        ensureConfigDir();
+        const { writeFileSync, chmodSync } = await import('fs');
+        writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+        try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+      } else {
+        const store = loadKeysV2();
+        if (store.keys[name]) {
+          console.error(`Key "${name}" already exists.`);
+          process.exit(1);
+        }
+
+        const password = await getPassword('Create password for key: ');
+        const confirmPassword = await getPassword('Confirm password: ');
+        if (password !== confirmPassword) {
+          console.error('Passwords do not match.');
+          process.exit(1);
+        }
+
+        const encrypted: EncryptedKey = {
+          version: 1,
+          name,
+          address,
+          publicKey: key.publicKey,
+          crypto: encryptPrivateKey(key.privateKey, password),
+        };
+
+        store.keys[name] = encrypted;
+        ensureConfigDir();
+        saveKeyStore(KEYS_FILE, store);
+      }
 
       console.log(`Key imported: ${name}`);
       console.log(`Address:      ${address}`);
@@ -157,30 +356,110 @@ keys
 keys
   .command('export <name>')
   .description('Export private key (hex)')
-  .action((name: string) => {
-    const store = loadKeys();
-    const entry = store[name];
+  .option('--no-password', 'Skip password prompt (only works with plaintext store)')
+  .action(async (name: string, opts: { noPassword?: boolean }) => {
+    const data = loadKeyStore(KEYS_FILE);
+
+    if (data === null) {
+      console.error(`Key "${name}" not found.`);
+      process.exit(1);
+    }
+
+    if (isLegacyKeyStore(data)) {
+      const entry = data[name];
+      if (!entry) {
+        console.error(`Key "${name}" not found.`);
+        process.exit(1);
+      }
+      console.log(entry.privateKey);
+      return;
+    }
+
+    const store = data as KeyStoreV2;
+    const entry = store.keys[name];
     if (!entry) {
       console.error(`Key "${name}" not found.`);
       process.exit(1);
     }
 
-    console.log(entry.privateKey);
+    const password = await getPassword('Enter password to export key: ', opts);
+    try {
+      const privateKeyHex = decryptPrivateKey(entry.crypto, password);
+      console.log(privateKeyHex);
+    } catch (err) {
+      console.error('Failed to decrypt key:', (err as Error).message);
+      process.exit(1);
+    }
   });
 
 keys
   .command('delete <name>')
   .description('Delete a stored key')
-  .action((name: string) => {
-    const store = loadKeys();
-    if (!store[name]) {
+  .action(async (name: string) => {
+    const data = loadKeyStore(KEYS_FILE);
+
+    if (data === null) {
       console.error(`Key "${name}" not found.`);
       process.exit(1);
     }
 
-    delete store[name];
-    saveKeys(store);
+    if (isLegacyKeyStore(data)) {
+      if (!data[name]) {
+        console.error(`Key "${name}" not found.`);
+        process.exit(1);
+      }
+      delete data[name];
+      ensureConfigDir();
+      const fs = await import('fs');
+      fs.writeFileSync(KEYS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      try { fs.chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+    } else {
+      const store = data as KeyStoreV2;
+      if (!store.keys[name]) {
+        console.error(`Key "${name}" not found.`);
+        process.exit(1);
+      }
+      delete store.keys[name];
+      saveKeyStore(KEYS_FILE, store);
+    }
+
     console.log(`Key "${name}" deleted.`);
+  });
+
+keys
+  .command('migrate')
+  .description('Migrate plaintext keys to encrypted keystore')
+  .action(async () => {
+    const data = loadKeyStore(KEYS_FILE);
+
+    if (data === null) {
+      console.log('No keystore found. Nothing to migrate.');
+      return;
+    }
+
+    if (!isLegacyKeyStore(data)) {
+      console.log('Keystore is already encrypted. Nothing to migrate.');
+      return;
+    }
+
+    const names = Object.keys(data);
+    if (names.length === 0) {
+      console.log('No keys found. Nothing to migrate.');
+      return;
+    }
+
+    console.log(`Found ${names.length} plaintext key(s): ${names.join(', ')}`);
+    const password = await getPassword('Create encryption password: ');
+    const confirmPassword = await getPassword('Confirm password: ');
+    if (password !== confirmPassword) {
+      console.error('Passwords do not match. Migration aborted.');
+      process.exit(1);
+    }
+
+    const encrypted = migrateLegacyStore(data, password);
+    ensureConfigDir();
+    saveKeyStore(KEYS_FILE, encrypted);
+    console.log(`Successfully migrated ${names.length} key(s) to encrypted keystore.`);
   });
 
 // ─── Node Status ──────────────────────────────────────────────────────────────
@@ -248,12 +527,14 @@ program
   .option('--memo <memo>', 'Transaction memo', '')
   .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
   .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .option('--no-password', 'Skip password prompt (plaintext keys only)')
   .action(async (opts: {
     from: string; to: string; amount: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
+    noPassword?: boolean;
   }) => {
     try {
-      const key = getKey(opts.from);
+      const key = await getDecryptedKey(opts.from, { noPassword: opts.noPassword });
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
       const accountInfo = await client.getAccountInfoSafe(address);
@@ -292,12 +573,14 @@ program
   .option('--memo <memo>', 'Transaction memo', '')
   .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
   .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .option('--no-password', 'Skip password prompt (plaintext keys only)')
   .action(async (opts: {
     from: string; validator: string; amount: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
+    noPassword?: boolean;
   }) => {
     try {
-      const key = getKey(opts.from);
+      const key = await getDecryptedKey(opts.from, { noPassword: opts.noPassword });
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
       const accountInfo = await client.getAccountInfoSafe(address);
@@ -436,12 +719,14 @@ program
   .option('--memo <memo>', 'Transaction memo', '')
   .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
   .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .option('--no-password', 'Skip password prompt (plaintext keys only)')
   .action(async (opts: {
     from: string; validator: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
+    noPassword?: boolean;
   }) => {
     try {
-      const key = getKey(opts.from);
+      const key = await getDecryptedKey(opts.from, { noPassword: opts.noPassword });
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
       const accountInfo = await client.getAccountInfoSafe(address);
@@ -478,9 +763,11 @@ program
   .option('--memo <memo>', 'Transaction memo', '')
   .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
   .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
+  .option('--no-password', 'Skip password prompt (plaintext keys only)')
   .action(async (opts: {
     from: string; proposal: string; option: string;
     rpc: string; rest: string; memo: string; gas: string; fees: string;
+    noPassword?: boolean;
   }) => {
     try {
       const proposalId = parsePositiveInt(opts.proposal, 'proposal ID');
@@ -495,7 +782,7 @@ program
         process.exit(1);
       }
 
-      const key = getKey(opts.from);
+      const key = await getDecryptedKey(opts.from, { noPassword: opts.noPassword });
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const address = key.getAddress();
       const accountInfo = await client.getAccountInfoSafe(address);
@@ -536,14 +823,16 @@ program
   .option('--gas <limit>', 'Gas limit', String(DEFAULT_GAS_LIMIT))
   .option('--fees <amount>', 'Fee amount in arai', DEFAULT_FEE_AMOUNT)
   .option('--wait', 'Wait for job to be included in block', false)
+  .option('--no-password', 'Skip password prompt (plaintext keys only)')
   .action(async (opts: {
     from: string; validator: string; image: string;
     verification: string; uploadEndpoint: string; fetchEndpoint: string;
     feeAmount: string; rpc: string; rest: string;
     gas: string; fees: string; wait: boolean;
+    noPassword?: boolean;
   }) => {
     try {
-      const key = getKey(opts.from);
+      const key = await getDecryptedKey(opts.from, { noPassword: opts.noPassword });
       const client = new RepublicClient({ rpc: opts.rpc, rest: opts.rest });
       const jobManager = new JobManager(client, key);
       const gasLimit = parsePositiveInt(opts.gas, 'gas limit');
