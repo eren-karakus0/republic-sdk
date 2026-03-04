@@ -52,9 +52,9 @@ function loadKeysV2(): KeyStoreV2 {
   }
 
   if (isLegacyKeyStore(data)) {
-    // Return as-is but wrapped - migration needs password so can't do it here
-    // Callers should check and migrate when needed
-    return { version: 2, keys: {} };
+    console.error('Legacy plaintext keystore detected.');
+    console.error('Run "republic-sdk keys migrate" to encrypt your keys before creating new encrypted keys.');
+    process.exit(1);
   }
 
   return data;
@@ -163,14 +163,19 @@ keys
           publicKey: key.publicKey,
         };
         ensureConfigDir();
-        const { writeFileSync, chmodSync } = await import('fs');
-        writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
-        try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+        const fs = await import('fs');
+        fs.writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+        try { fs.chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
         console.log(`Key created: ${name}`);
         console.log(`Address:     ${key.getAddress()}`);
         console.log(`Public Key:  ${key.publicKey}`);
         return;
       }
+
+      // Legacy store exists but user wants encrypted — force migration first
+      console.error('Legacy plaintext keystore detected.');
+      console.error('Run "republic-sdk keys migrate" first, then create new keys.');
+      process.exit(1);
     }
 
     const store = loadKeysV2();
@@ -183,17 +188,17 @@ keys
     const address = key.getAddress();
 
     if (opts.noPassword) {
-      // Store in legacy format for no-password mode
-      const legacy = loadLegacyKeys();
+      // No-password mode with no existing legacy store: create new legacy file
+      const legacy: LegacyKeyStore = {};
       legacy[name] = {
         privateKey: key.privateKey,
         address,
         publicKey: key.publicKey,
       };
       ensureConfigDir();
-      const { writeFileSync, chmodSync } = await import('fs');
-      writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
-      try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+      const fs = await import('fs');
+      fs.writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+      try { fs.chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
     } else {
       const password = await getPassword('Create password for key: ');
       const confirmPassword = await getPassword('Confirm password: ');
@@ -315,10 +320,17 @@ keys
           publicKey: key.publicKey,
         };
         ensureConfigDir();
-        const { writeFileSync, chmodSync } = await import('fs');
-        writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
-        try { chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
+        const fs = await import('fs');
+        fs.writeFileSync(KEYS_FILE, JSON.stringify(legacy, null, 2), 'utf-8');
+        try { fs.chmodSync(KEYS_FILE, 0o600); } catch { /* Windows */ }
       } else {
+        // Block if legacy store exists — force migration first
+        if (hasLegacyKeys()) {
+          console.error('Legacy plaintext keystore detected.');
+          console.error('Run "republic-sdk keys migrate" first, then import keys.');
+          process.exit(1);
+        }
+
         const store = loadKeysV2();
         if (store.keys[name]) {
           console.error(`Key "${name}" already exists.`);
