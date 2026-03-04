@@ -304,6 +304,18 @@ npm run build     # Build ESM + CJS + DTS
 npm run dev       # Watch mode
 ```
 
+## Examples
+
+See the [examples/](examples/) directory for runnable code samples:
+
+- **[basic-transfer.ts](examples/basic-transfer.ts)** — Send tokens with balance check and confirmation
+- **[staking-operations.ts](examples/staking-operations.ts)** — List validators, delegate, query and withdraw rewards
+- **[job-submission.ts](examples/job-submission.ts)** — Submit a compute job and watch status
+
+```bash
+npx tsx examples/basic-transfer.ts <private-key> <recipient> <amount-rai>
+```
+
 ## Technical Details
 
 - Uses **ethsecp256k1** for key management (Keccak256 address derivation)
