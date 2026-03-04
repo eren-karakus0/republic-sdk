@@ -9,7 +9,6 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +20,8 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm run test:integration
+      - name: Run integration tests
+        run: npm run test:integration
         env:
           REPUBLIC_INTEGRATION: '1'
           REPUBLIC_TEST_KEY: ${{ secrets.REPUBLIC_TEST_KEY }}
