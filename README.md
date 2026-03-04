@@ -1,5 +1,6 @@
 # Republic SDK
 
+[![npm version](https://img.shields.io/npm/v/republic-sdk.svg)](https://www.npmjs.com/package/republic-sdk)
 [![CI](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
@@ -11,6 +12,7 @@ Republic AI is a Cosmos SDK-based blockchain with EVM compatibility (ethsecp256k
 ## Features
 
 - **Key Management** — Generate, import, export secp256k1 keys with ethsecp256k1 address derivation
+- **Encrypted Keystore** — AES-256-GCM encryption with scrypt KDF for private keys at rest
 - **RPC Client** — Query node status, account info, balances with automatic retry & exponential backoff
 - **Staking Queries** — Validators, delegations, rewards
 - **Governance** — Query proposals, submit votes
@@ -22,21 +24,15 @@ Republic AI is a Cosmos SDK-based blockchain with EVM compatibility (ethsecp256k
 
 ## Installation
 
-Install directly from GitHub:
+```bash
+npm install republic-sdk
+```
+
+Or install directly from GitHub:
 
 ```bash
 npm install github:eren-karakus0/republic-sdk
 ```
-
-Or clone and build from source:
-
-```bash
-git clone https://github.com/eren-karakus0/republic-sdk.git
-cd republic-sdk
-npm install && npm run build
-```
-
-<!-- TODO: npm install republic-sdk (after npm publish) -->
 
 ## Quick Start
 
@@ -283,6 +279,7 @@ republic-sdk status <job-id> --watch
 | `TimeoutError` | Polling/wait timeouts |
 | `ValidationError` | Input validation errors |
 | `AccountNotFoundError` | Account 404 (address) |
+| `KeystoreError` | Keystore encrypt/decrypt errors |
 
 ## Chain Configuration
 
@@ -302,7 +299,7 @@ republic-sdk status <job-id> --watch
 ```bash
 npm install       # Install dependencies
 npm run lint      # Lint (src, bin, tests)
-npm run test      # Run 105 tests
+npm run test      # Run 132 tests
 npm run build     # Build ESM + CJS + DTS
 npm run dev       # Watch mode
 ```
