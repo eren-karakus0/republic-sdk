@@ -3,7 +3,7 @@ import { RepublicKey } from './key.js';
 import { signTx, msgSubmitJob } from './transaction.js';
 import { DEFAULT_GAS_LIMIT, DEFAULT_FEE_AMOUNT } from './constants.js';
 import { sleep } from './utils.js';
-import { TimeoutError } from './errors.js';
+import { TimeoutError, ValidationError, RpcError } from './errors.js';
 import type { JobSubmitParams, JobStatus, BroadcastResult, TxResponse } from './types.js';
 
 export class JobManager {
@@ -15,7 +15,7 @@ export class JobManager {
   /** Submit a compute job to the blockchain */
   async submitJob(params: JobSubmitParams): Promise<BroadcastResult> {
     if (!this.key) {
-      throw new Error('Key is required for submitting jobs');
+      throw new ValidationError('Key is required for submitting jobs');
     }
 
     const address = this.key.getAddress(this.client.config.addressPrefix);
@@ -69,7 +69,7 @@ export class JobManager {
     );
 
     if (!result.value) {
-      throw new Error(`Job ${jobId} not found`);
+      throw new ValidationError(`Job ${jobId} not found`);
     }
 
     const decoded = JSON.parse(
@@ -115,8 +115,10 @@ export class JobManager {
         } else {
           consecutiveErrors++;
           if (consecutiveErrors >= maxConsecutiveErrors) {
-            throw new Error(
+            throw new RpcError(
               `Job polling failed after ${maxConsecutiveErrors} consecutive errors: ${message}`,
+              -1,
+              this.client.config.rpc,
             );
           }
         }

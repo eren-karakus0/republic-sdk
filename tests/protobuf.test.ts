@@ -14,7 +14,7 @@ import {
   encodeMsgVote,
 } from '../src/protobuf';
 import { msgSend, msgWithdrawReward, msgVote } from '../src/transaction';
-import { PUBKEY_TYPE, MSG_TYPES } from '../src/constants';
+import { PUBKEY_TYPE } from '../src/constants';
 
 describe('Protobuf primitives', () => {
   describe('encodeVarint', () => {
@@ -244,6 +244,21 @@ describe('Protobuf message encoding', () => {
       const body = encodeTxBody([msg]);
       expect(body.length).toBeGreaterThan(0);
       expect(body[0]).toBe(0x0a);
+    });
+
+    it('should throw ValidationError for non-numeric proposal_id', () => {
+      const msg = msgVote('abc', 'rai1voter', 1);
+      expect(() => encodeMsgVote(msg)).toThrow('Invalid proposal_id');
+    });
+
+    it('should throw ValidationError for zero proposal_id', () => {
+      const msg = msgVote('0', 'rai1voter', 1);
+      expect(() => encodeMsgVote(msg)).toThrow('must be a positive integer');
+    });
+
+    it('should throw ValidationError for negative proposal_id', () => {
+      const msg = msgVote('-5', 'rai1voter', 1);
+      expect(() => encodeMsgVote(msg)).toThrow('must be a positive integer');
     });
   });
 });

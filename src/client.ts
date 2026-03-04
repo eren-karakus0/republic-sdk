@@ -160,14 +160,10 @@ export class RepublicClient {
   /** Get specific denom balance */
   async getBalance(address: string, denom?: string): Promise<Coin> {
     const d = denom || this.config.denom;
-    try {
-      const data = await this.restGet<{ balance?: Coin }>(
-        `/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${d}`,
-      );
-      return (data.balance || { denom: d, amount: '0' }) as Coin;
-    } catch {
-      return { denom: d, amount: '0' };
-    }
+    const data = await this.restGet<{ balance?: Coin }>(
+      `/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${d}`,
+    );
+    return (data.balance || { denom: d, amount: '0' }) as Coin;
   }
 
   /** Broadcast a signed transaction (base64-encoded tx bytes) */

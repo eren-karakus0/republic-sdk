@@ -77,6 +77,7 @@ export function rawMessage(...fields: Uint8Array[]): Uint8Array {
 
 import type { Coin, TxMessage, MsgSend, MsgDelegate, MsgUndelegate, MsgBeginRedelegate, MsgSubmitJob, MsgWithdrawDelegatorReward, MsgVote, Fee } from './types.js';
 import { MSG_TYPES } from './constants.js';
+import { ValidationError } from './errors.js';
 
 /** cosmos.base.v1beta1.Coin { string denom = 1; string amount = 2; } */
 export function encodeCoin(coin: Coin): Uint8Array {
@@ -156,8 +157,17 @@ export function encodeMsgWithdrawDelegatorReward(msg: MsgWithdrawDelegatorReward
 
 /** cosmos.gov.v1beta1.MsgVote */
 export function encodeMsgVote(msg: MsgVote): Uint8Array {
+  let proposalId: bigint;
+  try {
+    proposalId = BigInt(msg.proposal_id);
+  } catch {
+    throw new ValidationError(`Invalid proposal_id: "${msg.proposal_id}" is not a valid integer`);
+  }
+  if (proposalId <= 0n) {
+    throw new ValidationError(`Invalid proposal_id: must be a positive integer, got "${msg.proposal_id}"`);
+  }
   return rawMessage(
-    varintField(1, BigInt(msg.proposal_id)),
+    varintField(1, proposalId),
     stringField(2, msg.voter),
     varintField(3, msg.option),
   );

@@ -483,6 +483,8 @@ program
     rpc: string; rest: string; memo: string; gas: string; fees: string;
   }) => {
     try {
+      const proposalId = parsePositiveInt(opts.proposal, 'proposal ID');
+
       const voteMap: Record<string, number> = {
         yes: 1, abstain: 2, no: 3, no_with_veto: 4,
         '1': 1, '2': 2, '3': 3, '4': 4,
@@ -498,7 +500,7 @@ program
       const address = key.getAddress();
       const accountInfo = await client.getAccountInfoSafe(address);
 
-      const msg = msgVote(opts.proposal, address, voteOption);
+      const msg = msgVote(String(proposalId), address, voteOption);
 
       const txBytes = signTx(key, [msg], {
         accountNumber: accountInfo.accountNumber,
