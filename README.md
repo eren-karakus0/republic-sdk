@@ -1,16 +1,24 @@
 # Republic SDK
 
-TypeScript SDK for [Republic AI](https://republicai.io) blockchain — key management, transaction signing, job submission & CLI.
+[![CI](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+
+TypeScript SDK for [Republic AI](https://republicai.io) blockchain — key management, transaction signing, staking, governance & CLI.
 
 Republic AI is a Cosmos SDK-based blockchain with EVM compatibility (ethsecp256k1). This SDK provides a simple, type-safe interface for interacting with the Republic testnet.
 
 ## Features
 
 - **Key Management** — Generate, import, export secp256k1 keys with ethsecp256k1 address derivation
-- **RPC Client** — Query node status, account info, balances via Tendermint JSON-RPC & REST
-- **Transaction Signing** — Build and sign Cosmos SDK transactions (send, delegate, redelegate)
+- **RPC Client** — Query node status, account info, balances with automatic retry & exponential backoff
+- **Staking Queries** — Validators, delegations, rewards
+- **Governance** — Query proposals, submit votes
+- **Transaction Signing** — Build and sign Cosmos SDK transactions (send, delegate, withdraw rewards, vote)
 - **Job Submission** — Submit compute jobs to validators and monitor their status
-- **CLI Tool** — Command-line interface for all operations
+- **Error Handling** — Typed error hierarchy (`RpcError`, `BroadcastError`, `TimeoutError`, etc.)
+- **CLI Tool** — Full command-line interface for all operations
+- **Dual Module** — ESM + CommonJS + TypeScript declarations
 
 ## Installation
 
@@ -35,7 +43,7 @@ import { RepublicKey, RepublicClient, signTx, msgSend } from 'republic-sdk';
 const key = RepublicKey.generate();
 console.log('Address:', key.getAddress()); // rai1...
 
-// Connect to testnet
+// Connect to testnet (with automatic retry)
 const client = new RepublicClient();
 
 // Query node status
@@ -51,8 +59,7 @@ const msg = msgSend(key.getAddress(), 'rai1recipient...', [
   { denom: 'arai', amount: '1000000000000000000' }, // 1 RAI
 ]);
 
-const accountInfo = await client.getAccountInfo(key.getAddress());
-// signTx returns base64-encoded protobuf TxRaw
+const accountInfo = await client.getAccountInfoSafe(key.getAddress());
 const txBytes = signTx(key, [msg], {
   accountNumber: accountInfo.accountNumber,
   sequence: accountInfo.sequence,
@@ -60,6 +67,29 @@ const txBytes = signTx(key, [msg], {
 
 const result = await client.broadcastTx(txBytes);
 console.log('TX Hash:', result.hash);
+```
+
+### Staking & Governance
+
+```typescript
+import { RepublicClient, msgWithdrawReward, msgVote } from 'republic-sdk';
+
+const client = new RepublicClient();
+
+// Query validators
+const validators = await client.getValidators('BOND_STATUS_BONDED');
+validators.forEach(v => console.log(v.moniker, v.tokens));
+
+// Query delegations & rewards
+const delegations = await client.getDelegations('rai1...');
+const rewards = await client.getRewards('rai1...');
+
+// Query governance proposals
+const proposals = await client.getProposals();
+
+// Build withdraw & vote messages
+const withdrawMsg = msgWithdrawReward('rai1delegator', 'raivaloper1validator');
+const voteMsg = msgVote('1', 'rai1voter', 1); // 1=Yes, 2=Abstain, 3=No, 4=NoWithVeto
 ```
 
 ### Submit a Compute Job
@@ -86,27 +116,54 @@ for await (const status of jobs.watchJob(jobId!)) {
 }
 ```
 
+### Error Handling
+
+```typescript
+import { RepublicClient, RpcError, BroadcastError, TimeoutError } from 'republic-sdk';
+
+try {
+  const client = new RepublicClient();
+  await client.broadcastTx(txBytes);
+} catch (err) {
+  if (err instanceof BroadcastError) {
+    console.error(`TX failed (code ${err.code}): ${err.log}`);
+  } else if (err instanceof RpcError) {
+    console.error(`RPC error at ${err.endpoint}: ${err.message}`);
+  } else if (err instanceof TimeoutError) {
+    console.error('Operation timed out');
+  }
+}
+```
+
+### Retry Configuration
+
+```typescript
+const client = new RepublicClient(
+  { rpc: 'https://rpc.republicai.io' },
+  { retryOptions: { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 15000 } }
+);
+```
+
+### Amount Utilities
+
+```typescript
+import { araiToRai, raiToArai } from 'republic-sdk';
+
+araiToRai('1000000000000000000'); // '1'
+araiToRai('1500000000000000000'); // '1.5'
+raiToArai('2.5');                 // '2500000000000000000'
+```
+
 ## CLI Usage
 
 ### Key Management
 
 ```bash
-# Create a new key
 republic-sdk keys create my-wallet
-
-# List all keys
 republic-sdk keys list
-
-# Show key details
 republic-sdk keys show my-wallet
-
-# Import a key from hex private key
 republic-sdk keys import my-wallet <private-key-hex>
-
-# Export private key
 republic-sdk keys export my-wallet
-
-# Delete a key
 republic-sdk keys delete my-wallet
 ```
 
@@ -115,10 +172,19 @@ republic-sdk keys delete my-wallet
 ```bash
 # Node status
 republic-sdk node-status
-republic-sdk node-status --rpc https://rpc.republicai.io
 
 # Account balance
 republic-sdk balance rai1...
+
+# Validator list
+republic-sdk validators
+republic-sdk validators --status BOND_STATUS_BONDED
+
+# Delegations
+republic-sdk delegations rai1...
+
+# Staking rewards
+republic-sdk rewards rai1...
 ```
 
 ### Transactions
@@ -129,6 +195,12 @@ republic-sdk send --from my-wallet --to rai1... --amount 1000000000000000000
 
 # Delegate to validator
 republic-sdk delegate --from my-wallet --validator raivaloper1... --amount 50000000000000000000
+
+# Withdraw staking rewards
+republic-sdk withdraw-rewards --from my-wallet --validator raivaloper1...
+
+# Vote on governance proposal
+republic-sdk vote --from my-wallet --proposal 1 --option yes
 ```
 
 ### Job Submission
@@ -139,15 +211,10 @@ republic-sdk submit \
   --from my-wallet \
   --validator raivaloper1... \
   --image republic-llm-inference:latest \
-  --verification example-verification:latest \
-  --upload-endpoint http://localhost:8080/upload \
-  --fetch-endpoint http://localhost:8080/result \
   --wait
 
 # Check job status
 republic-sdk status <job-id>
-
-# Watch job status
 republic-sdk status <job-id> --watch
 ```
 
@@ -161,7 +228,6 @@ republic-sdk status <job-id> --watch
 | `RepublicKey.fromPrivateKey(hex)` | Import from hex private key |
 | `key.getAddress(prefix?)` | Get bech32 address (default: `rai`) |
 | `key.publicKey` | Compressed public key (hex) |
-| `key.publicKeyBase64` | Compressed public key (base64) |
 | `key.sign(message)` | Sign a message (returns 64-byte compact sig) |
 | `key.verify(message, sig)` | Verify a signature |
 
@@ -169,14 +235,23 @@ republic-sdk status <job-id> --watch
 
 | Method | Description |
 |--------|-------------|
-| `new RepublicClient(config?)` | Create client (defaults to testnet) |
+| `new RepublicClient(config?, options?)` | Create client with retry options |
 | `client.getStatus()` | Query node status |
 | `client.getAccountInfo(address)` | Get account number & sequence |
+| `client.getAccountInfoSafe(address)` | Same, returns defaults for new accounts |
 | `client.getBalances(address)` | Get all balances |
 | `client.getBalance(address, denom?)` | Get specific denom balance |
 | `client.broadcastTx(txBytes, mode?)` | Broadcast signed transaction |
 | `client.getTx(hash)` | Query transaction by hash |
 | `client.waitForTx(hash, timeout?)` | Wait for tx inclusion |
+| `client.getValidators(status?)` | List validators |
+| `client.getValidator(address)` | Get validator details |
+| `client.getDelegations(address)` | List delegations |
+| `client.getDelegation(delegator, validator)` | Get specific delegation |
+| `client.getRewards(address)` | Get all staking rewards |
+| `client.getReward(delegator, validator)` | Get specific reward |
+| `client.getProposals(status?)` | List governance proposals |
+| `client.getProposal(id)` | Get proposal details |
 
 ### Transaction Builders
 
@@ -186,17 +261,22 @@ republic-sdk status <job-id> --watch
 | `msgDelegate(delegator, validator, amount)` | Build MsgDelegate |
 | `msgUndelegate(delegator, validator, amount)` | Build MsgUndelegate |
 | `msgRedelegate(delegator, src, dst, amount)` | Build MsgBeginRedelegate |
+| `msgWithdrawReward(delegator, validator)` | Build MsgWithdrawDelegatorReward |
+| `msgVote(proposalId, voter, option)` | Build MsgVote |
 | `msgSubmitJob(params)` | Build MsgSubmitJob |
 | `signTx(key, messages, options)` | Sign and encode tx (returns base64 TxRaw) |
 
-### JobManager
+### Error Classes
 
-| Method | Description |
-|--------|-------------|
-| `jobs.submitJob(params)` | Submit a compute job |
-| `jobs.submitAndWait(params)` | Submit and wait for block inclusion |
-| `jobs.getJobStatus(jobId)` | Query job status |
-| `jobs.watchJob(jobId)` | AsyncGenerator for real-time status |
+| Class | Description |
+|-------|-------------|
+| `RepublicError` | Base error class |
+| `RpcError` | RPC connection errors (code, endpoint) |
+| `RestError` | REST API errors (statusCode, endpoint) |
+| `BroadcastError` | TX broadcast errors (code, log, hash) |
+| `TimeoutError` | Polling/wait timeouts |
+| `ValidationError` | Input validation errors |
+| `AccountNotFoundError` | Account 404 (address) |
 
 ## Chain Configuration
 
@@ -214,26 +294,30 @@ republic-sdk status <job-id> --watch
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build
-npm run build
-
-# Watch mode
-npm run dev
+npm install       # Install dependencies
+npm run lint      # Lint (src, bin, tests)
+npm run test      # Run 105 tests
+npm run build     # Build ESM + CJS + DTS
+npm run dev       # Watch mode
 ```
 
 ## Technical Details
 
-- Uses **ethsecp256k1** for key management (Keccak256 address derivation, like Ethereum)
+- Uses **ethsecp256k1** for key management (Keccak256 address derivation)
+- Minimal protobuf encoder (no heavy dependencies)
+- Automatic retry with exponential backoff for network resilience
+- Typed error hierarchy for programmatic error handling
 - Compatible with Cosmos SDK transaction format
-- Supports both ESM and CommonJS
-- Built with TypeScript for full type safety
 - Uses `@noble/secp256k1` and `@noble/hashes` (audited cryptographic libraries)
+- Supports both ESM and CommonJS
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security policy and responsible disclosure.
 
 ## License
 
