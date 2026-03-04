@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.1...republic-sdk-v0.3.2) (2026-03-04)
+
+
+### Bug Fixes
+
+* chain publish into release-please workflow ([ab49c39](https://github.com/eren-karakus0/republic-sdk/commit/ab49c39557105107c5d55a1ca73e533344612fb5))
+* chain publish step into release-please workflow ([f7a005a](https://github.com/eren-karakus0/republic-sdk/commit/f7a005a0f404b6fda97d7455b6af2cac89af0c9e))
+* **ci:** add issues write permission for release-please labels ([2969877](https://github.com/eren-karakus0/republic-sdk/commit/2969877336c11b10b237094e2fe3ee98fe8fda64))
+* **docs:** update security policy, add CODEOWNERS, clean changelog ([12064d7](https://github.com/eren-karakus0/republic-sdk/commit/12064d7c08fafad483bb1d9820d7f32fb0ffbdd7))
+* **test:** fix integration test runner with separate vitest config ([46f2c2c](https://github.com/eren-karakus0/republic-sdk/commit/46f2c2c380b9290259b6a4f0866b46628ad44153))
+* **test:** upgrade vitest to v2 to fix DataCloneError in integration tests ([5954f3b](https://github.com/eren-karakus0/republic-sdk/commit/5954f3ba0927bbdd15ccf4bb37059a01ba9bbdd8))
+* **test:** use forks pool for integration tests to avoid DataCloneError ([158bd42](https://github.com/eren-karakus0/republic-sdk/commit/158bd42337f7036cd0b1ef4bd3b519772417b0e3))
+
 ## [0.3.1](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.0...republic-sdk-v0.3.1) (2026-03-04)
 
 
