@@ -27,15 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * correct Fee.gas_limit protobuf field number and polish ([6e563f4](https://github.com/eren-karakus0/republic-sdk/commit/6e563f48a0b4585752f3af37aef987ad4c0d14b3))
 * critical fixes for production readiness ([e52e401](https://github.com/eren-karakus0/republic-sdk/commit/e52e40128bc6128beccdf043324fb87af0a4765e))
 * prevent legacy keystore data loss on encrypted key operations ([d89be3d](https://github.com/eren-karakus0/republic-sdk/commit/d89be3d2cabf45f0b75fbc3b7dc0836f5ae060e8))
-* prevent legacy keystore data loss on encrypted key operations ([3297131](https://github.com/eren-karakus0/republic-sdk/commit/329713149e8df99ee3a05bc4d3e106b63af6c4b4))
 * stabilize release-please and sync package-lock.json ([d0c6ce0](https://github.com/eren-karakus0/republic-sdk/commit/d0c6ce0345a764e9bec6f367de1e911540fc819d))
-* stabilize release-please and sync package-lock.json ([d58c184](https://github.com/eren-karakus0/republic-sdk/commit/d58c18498f77c731bdaec0580dbc9d28588e2d02))
 
 
 ### Documentation
 
 * restructure examples with runnable CLI scripts ([4c42108](https://github.com/eren-karakus0/republic-sdk/commit/4c42108bd57eb3889cb06b8fe8b3fef69dcb6839))
-* restructure examples with runnable CLI scripts ([d2ad0f4](https://github.com/eren-karakus0/republic-sdk/commit/d2ad0f402faced9d9ac707f22676690fea379426))
 
 ## [0.3.0] - 2026-03-04
 
