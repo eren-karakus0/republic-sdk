@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.2...republic-sdk-v0.3.3) (2026-03-16)
+
+
+### Features
+
+* **panoptes:** add PanoptesClient and broadcastTxSafe method ([c135d4c](https://github.com/eren-karakus0/republic-sdk/commit/c135d4c7cd4b6b7cb620f00afc98f862e59bb88f))
+* **panoptes:** PanoptesClient integration ([f4310c4](https://github.com/eren-karakus0/republic-sdk/commit/f4310c407c79769f7784228ff2348e056ebb080f))
+
+
+### Bug Fixes
+
+* **panoptes:** add URL encoding and scheme validation ([1583cfe](https://github.com/eren-karakus0/republic-sdk/commit/1583cfe670821005a1ebeaa661a96c427ce62f7e))
+
 ## [0.3.2](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.1...republic-sdk-v0.3.2) (2026-03-04)
 
 
