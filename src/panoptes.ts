@@ -15,7 +15,11 @@ export class PanoptesClient {
   private apiKey: string | null;
 
   constructor(options?: PanoptesClientOptions) {
-    const baseURL = options?.baseUrl ?? DEFAULT_BASE_URL;
+    const url = options?.baseUrl ?? DEFAULT_BASE_URL;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      throw new Error('baseUrl must start with http:// or https://');
+    }
+    const baseURL = url.replace(/\/+$/, '');
     const timeout = options?.timeout ?? DEFAULT_TIMEOUT;
     this.apiKey = options?.apiKey ?? null;
 
@@ -27,7 +31,7 @@ export class PanoptesClient {
 
   /** Get the best endpoint for a given type */
   async getBestEndpoint(type: 'rpc' | 'rest' | 'evm-rpc'): Promise<PanoptesEndpoint> {
-    const { data } = await this.http.get(`/api/endpoints/best?type=${type}`);
+    const { data } = await this.http.get(`/api/endpoints/best?type=${encodeURIComponent(type)}`);
     return data as PanoptesEndpoint;
   }
 
@@ -55,7 +59,7 @@ export class PanoptesClient {
 
   /** Get validator score */
   async getValidatorScore(validatorId: string): Promise<PanoptesValidatorScore> {
-    const { data } = await this.http.get(`/api/validators/${validatorId}`);
+    const { data } = await this.http.get(`/api/validators/${encodeURIComponent(validatorId)}`);
     return {
       validatorId,
       score: data.validator?.score ?? 0,
