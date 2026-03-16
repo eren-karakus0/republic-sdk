@@ -72,9 +72,14 @@ export class JobManager {
       throw new ValidationError(`Job ${jobId} not found`);
     }
 
-    const decoded = JSON.parse(
-      Buffer.from(result.value, 'base64').toString(),
-    );
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(
+        Buffer.from(result.value, 'base64').toString(),
+      );
+    } catch {
+      throw new ValidationError(`Invalid job status response for job ${jobId}`);
+    }
 
     return decoded as JobStatus;
   }
