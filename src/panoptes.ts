@@ -6,6 +6,7 @@ import type {
   PanoptesValidatorScore,
   PreflightResult,
 } from './types.js';
+import { validateExternalUrl } from './validation.js';
 
 const DEFAULT_BASE_URL = 'https://panoptes.republicai.io';
 const DEFAULT_TIMEOUT = 10000;
@@ -16,9 +17,7 @@ export class PanoptesClient {
 
   constructor(options?: PanoptesClientOptions) {
     const url = options?.baseUrl ?? DEFAULT_BASE_URL;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      throw new Error('baseUrl must start with http:// or https://');
-    }
+    validateExternalUrl(url);
     const baseURL = url.replace(/\/+$/, '');
     const timeout = options?.timeout ?? DEFAULT_TIMEOUT;
     this.apiKey = options?.apiKey ?? null;

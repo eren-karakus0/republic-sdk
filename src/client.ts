@@ -4,6 +4,7 @@ import { sleep, retry } from './utils.js';
 import type { RetryOptions } from './utils.js';
 import { RpcError, BroadcastError, TimeoutError, AccountNotFoundError, ValidationError } from './errors.js';
 import { PanoptesClient } from './panoptes.js';
+import { validateBech32Address } from './validation.js';
 import type {
   AccountInfo,
   BroadcastResult,
@@ -119,6 +120,7 @@ export class RepublicClient {
 
   /** Get account info (account_number, sequence) via REST API */
   async getAccountInfo(address: string): Promise<AccountInfo> {
+    validateBech32Address(address, this.config.addressPrefix);
     try {
       const data = await this.restGet<{
         account?: {
@@ -131,7 +133,7 @@ export class RepublicClient {
         address?: string;
         account_number?: string;
         sequence?: string;
-      }>(`/cosmos/auth/v1beta1/accounts/${address}`);
+      }>(`/cosmos/auth/v1beta1/accounts/${encodeURIComponent(address)}`);
 
       const account = data.account || data;
       const baseAccount = (account as Record<string, unknown>).base_account || account;
@@ -164,17 +166,19 @@ export class RepublicClient {
 
   /** Get account balances */
   async getBalances(address: string): Promise<Coin[]> {
+    validateBech32Address(address, this.config.addressPrefix);
     const data = await this.restGet<{ balances?: Coin[] }>(
-      `/cosmos/bank/v1beta1/balances/${address}`,
+      `/cosmos/bank/v1beta1/balances/${encodeURIComponent(address)}`,
     );
     return (data.balances || []) as Coin[];
   }
 
   /** Get specific denom balance */
   async getBalance(address: string, denom?: string): Promise<Coin> {
+    validateBech32Address(address, this.config.addressPrefix);
     const d = denom || this.config.denom;
     const data = await this.restGet<{ balance?: Coin }>(
-      `/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${d}`,
+      `/cosmos/bank/v1beta1/balances/${encodeURIComponent(address)}/by_denom?denom=${encodeURIComponent(d)}`,
     );
     return (data.balance || { denom: d, amount: '0' }) as Coin;
   }
@@ -353,9 +357,10 @@ export class RepublicClient {
 
   /** Get single validator info */
   async getValidator(validatorAddress: string): Promise<Validator> {
+    validateBech32Address(validatorAddress, this.config.validatorPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/staking/v1beta1/validators/${validatorAddress}`,
+      `/cosmos/staking/v1beta1/validators/${encodeURIComponent(validatorAddress)}`,
     );
 
     const v = data.validator;
@@ -371,9 +376,10 @@ export class RepublicClient {
 
   /** Get all delegations for a delegator */
   async getDelegations(delegatorAddress: string): Promise<Delegation[]> {
+    validateBech32Address(delegatorAddress, this.config.addressPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/staking/v1beta1/delegations/${delegatorAddress}`,
+      `/cosmos/staking/v1beta1/delegations/${encodeURIComponent(delegatorAddress)}`,
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -390,9 +396,11 @@ export class RepublicClient {
     delegatorAddress: string,
     validatorAddress: string,
   ): Promise<Delegation> {
+    validateBech32Address(delegatorAddress, this.config.addressPrefix);
+    validateBech32Address(validatorAddress, this.config.validatorPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/staking/v1beta1/validators/${validatorAddress}/delegations/${delegatorAddress}`,
+      `/cosmos/staking/v1beta1/validators/${encodeURIComponent(validatorAddress)}/delegations/${encodeURIComponent(delegatorAddress)}`,
     );
 
     const d = data.delegation_response;
@@ -406,9 +414,10 @@ export class RepublicClient {
 
   /** Get all staking rewards for a delegator */
   async getRewards(delegatorAddress: string): Promise<Reward[]> {
+    validateBech32Address(delegatorAddress, this.config.addressPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards`,
+      `/cosmos/distribution/v1beta1/delegators/${encodeURIComponent(delegatorAddress)}/rewards`,
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -423,9 +432,11 @@ export class RepublicClient {
     delegatorAddress: string,
     validatorAddress: string,
   ): Promise<Coin[]> {
+    validateBech32Address(delegatorAddress, this.config.addressPrefix);
+    validateBech32Address(validatorAddress, this.config.validatorPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards/${validatorAddress}`,
+      `/cosmos/distribution/v1beta1/delegators/${encodeURIComponent(delegatorAddress)}/rewards/${encodeURIComponent(validatorAddress)}`,
     );
 
     return (data.rewards || []) as Coin[];
@@ -454,7 +465,7 @@ export class RepublicClient {
   async getProposal(proposalId: string): Promise<Proposal> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.restGet<any>(
-      `/cosmos/gov/v1beta1/proposals/${proposalId}`,
+      `/cosmos/gov/v1beta1/proposals/${encodeURIComponent(proposalId)}`,
     );
 
     const p = data.proposal;
