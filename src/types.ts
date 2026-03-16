@@ -228,3 +228,41 @@ export interface KeyStoreV2 {
   version: 2;
   keys: Record<string, EncryptedKey>;
 }
+
+// Panoptes integration types
+
+export interface PanoptesClientOptions {
+  baseUrl?: string;
+  apiKey?: string;
+  timeout?: number;
+}
+
+export interface PanoptesEndpoint {
+  url: string;
+  score: number;
+  type: string;
+}
+
+export interface PanoptesNetworkStats {
+  totalValidators: number;
+  activeValidators: number;
+  totalStaked: string;
+  blockHeight: string;
+}
+
+export interface PanoptesValidatorScore {
+  validatorId: string;
+  score: number;
+  missedBlockRate: number;
+  governanceScore: number;
+}
+
+export interface PreflightResult {
+  safe: boolean;
+  checks: {
+    name: string;
+    passed: boolean;
+    message: string;
+  }[];
+  recommendation: string;
+}
