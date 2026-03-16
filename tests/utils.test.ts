@@ -88,6 +88,24 @@ describe('retry', () => {
   });
 });
 
+describe('araiToRai - input validation', () => {
+  it('should reject empty string', () => {
+    expect(() => araiToRai('')).toThrow('Invalid arai amount');
+  });
+
+  it('should reject negative numbers', () => {
+    expect(() => araiToRai('-100')).toThrow('Invalid arai amount');
+  });
+
+  it('should reject decimal inputs', () => {
+    expect(() => araiToRai('1.5')).toThrow('Invalid arai amount');
+  });
+
+  it('should reject non-numeric strings', () => {
+    expect(() => araiToRai('abc')).toThrow('Invalid arai amount');
+  });
+});
+
 describe('araiToRai', () => {
   it('should convert whole numbers', () => {
     expect(araiToRai('1000000000000000000')).toBe('1');
@@ -109,6 +127,24 @@ describe('araiToRai', () => {
 
   it('should handle large amounts', () => {
     expect(araiToRai('123456789000000000000000000')).toBe('123456789');
+  });
+});
+
+describe('raiToArai - input validation', () => {
+  it('should reject empty string', () => {
+    expect(() => raiToArai('')).toThrow('Invalid amount');
+  });
+
+  it('should reject negative numbers', () => {
+    expect(() => raiToArai('-1')).toThrow('Invalid amount');
+  });
+
+  it('should reject non-numeric strings', () => {
+    expect(() => raiToArai('abc')).toThrow('Invalid amount');
+  });
+
+  it('should reject double dots', () => {
+    expect(() => raiToArai('1.2.3')).toThrow('Invalid amount');
   });
 });
 

@@ -61,6 +61,9 @@ const ARAI_DECIMALS = 18n;
 const ARAI_FACTOR = 10n ** ARAI_DECIMALS;
 
 export function araiToRai(arai: string): string {
+  if (!arai || typeof arai !== 'string' || !/^\d+$/.test(arai)) {
+    throw new Error(`Invalid arai amount: "${arai}"`);
+  }
   const value = BigInt(arai);
   const whole = value / ARAI_FACTOR;
   const frac = value % ARAI_FACTOR;
@@ -72,6 +75,9 @@ export function araiToRai(arai: string): string {
 }
 
 export function raiToArai(rai: string): string {
+  if (!rai || typeof rai !== 'string' || !/^\d+(\.\d+)?$/.test(rai)) {
+    throw new Error(`Invalid amount: "${rai}"`);
+  }
   const parts = rai.split('.');
   const whole = BigInt(parts[0]);
 

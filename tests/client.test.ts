@@ -127,7 +127,7 @@ describe('RepublicClient', () => {
       mockRestGet.mockRejectedValueOnce(error);
 
       const client = new RepublicClient(undefined, { retryOptions: { maxRetries: 0 } });
-      await expect(client.getAccountInfo('rai1nonexistent')).rejects.toThrow(AccountNotFoundError);
+      await expect(client.getAccountInfo('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x')).rejects.toThrow(AccountNotFoundError);
     });
 
     it('should return defaults via getAccountInfoSafe for non-existent account', async () => {
@@ -135,7 +135,7 @@ describe('RepublicClient', () => {
       mockRestGet.mockRejectedValueOnce(error);
 
       const client = new RepublicClient(undefined, { retryOptions: { maxRetries: 0 } });
-      const info = await client.getAccountInfoSafe('rai1nonexistent');
+      const info = await client.getAccountInfoSafe('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x');
 
       expect(info.accountNumber).toBe('0');
       expect(info.sequence).toBe('0');
@@ -153,7 +153,7 @@ describe('RepublicClient', () => {
       });
 
       const client = new RepublicClient();
-      const balances = await client.getBalances('rai1test');
+      const balances = await client.getBalances('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x');
 
       expect(balances).toHaveLength(1);
       expect(balances[0].denom).toBe('arai');
@@ -260,8 +260,8 @@ describe('RepublicClient', () => {
           delegation_responses: [
             {
               delegation: {
-                delegator_address: 'rai1del',
-                validator_address: 'raivaloper1val',
+                delegator_address: 'rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x',
+                validator_address: 'raivaloper12rfm0s7qu0v8mwmx54uepea3kx8d2m6v30x9ys',
                 shares: '1000.000000000000000000',
               },
               balance: { denom: 'arai', amount: '1000000000000000000' },
@@ -271,11 +271,11 @@ describe('RepublicClient', () => {
       });
 
       const client = new RepublicClient(undefined, { retryOptions: { maxRetries: 0 } });
-      const delegations = await client.getDelegations('rai1del');
+      const delegations = await client.getDelegations('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x');
 
       expect(delegations).toHaveLength(1);
-      expect(delegations[0].delegatorAddress).toBe('rai1del');
-      expect(delegations[0].validatorAddress).toBe('raivaloper1val');
+      expect(delegations[0].delegatorAddress).toBe('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x');
+      expect(delegations[0].validatorAddress).toBe('raivaloper12rfm0s7qu0v8mwmx54uepea3kx8d2m6v30x9ys');
       expect(delegations[0].balance.amount).toBe('1000000000000000000');
     });
   });
@@ -286,7 +286,7 @@ describe('RepublicClient', () => {
         data: {
           rewards: [
             {
-              validator_address: 'raivaloper1val',
+              validator_address: 'raivaloper12rfm0s7qu0v8mwmx54uepea3kx8d2m6v30x9ys',
               reward: [{ denom: 'arai', amount: '500000000000000000' }],
             },
           ],
@@ -294,10 +294,10 @@ describe('RepublicClient', () => {
       });
 
       const client = new RepublicClient(undefined, { retryOptions: { maxRetries: 0 } });
-      const rewards = await client.getRewards('rai1del');
+      const rewards = await client.getRewards('rai12rfm0s7qu0v8mwmx54uepea3kx8d2m6vk6xc0x');
 
       expect(rewards).toHaveLength(1);
-      expect(rewards[0].validatorAddress).toBe('raivaloper1val');
+      expect(rewards[0].validatorAddress).toBe('raivaloper12rfm0s7qu0v8mwmx54uepea3kx8d2m6v30x9ys');
       expect(rewards[0].reward[0].amount).toBe('500000000000000000');
     });
   });

@@ -29,6 +29,9 @@ export {
 export { sleep, retry, araiToRai, raiToArai } from './utils.js';
 export type { RetryOptions } from './utils.js';
 
+// Validation
+export { validateBech32Address, isValidBech32Address, isPrivateUrl, validateExternalUrl } from './validation.js';
+
 // Transaction builders
 export {
   signTx,

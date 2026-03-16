@@ -26,16 +26,28 @@ describe('PanoptesClient', () => {
 
     it('should use custom options', () => {
       new PanoptesClient({
-        baseUrl: 'http://localhost:3000',
+        baseUrl: 'https://panoptes-staging.example.com',
         apiKey: 'test-key',
         timeout: 5000,
       });
       expect(axios.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseURL: 'http://localhost:3000',
+          baseURL: 'https://panoptes-staging.example.com',
           timeout: 5000,
           headers: expect.objectContaining({ 'x-api-key': 'test-key' }),
         }),
+      );
+    });
+
+    it('should reject private/internal URLs', () => {
+      expect(() => new PanoptesClient({ baseUrl: 'http://localhost:3000' })).toThrow(
+        'private/internal network',
+      );
+      expect(() => new PanoptesClient({ baseUrl: 'http://127.0.0.1:8080' })).toThrow(
+        'private/internal network',
+      );
+      expect(() => new PanoptesClient({ baseUrl: 'http://10.0.0.1' })).toThrow(
+        'private/internal network',
       );
     });
 
