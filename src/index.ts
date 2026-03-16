@@ -2,6 +2,7 @@
 export { RepublicKey, hexToBytes, bytesToHex, addressToBytes, bytesToAddress } from './key.js';
 export { RepublicClient } from './client.js';
 export type { ClientOptions } from './client.js';
+export { PanoptesClient } from './panoptes.js';
 export { JobManager } from './job.js';
 
 // Errors
@@ -88,4 +89,9 @@ export type {
   EncryptedKey,
   KeyStoreV2,
   ScryptParams,
+  PanoptesClientOptions,
+  PanoptesEndpoint,
+  PanoptesNetworkStats,
+  PanoptesValidatorScore,
+  PreflightResult,
 } from './types.js';

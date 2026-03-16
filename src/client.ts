@@ -2,7 +2,8 @@ import axios, { AxiosInstance } from 'axios';
 import { REPUBLIC_TESTNET } from './constants.js';
 import { sleep, retry } from './utils.js';
 import type { RetryOptions } from './utils.js';
-import { RpcError, BroadcastError, TimeoutError, AccountNotFoundError } from './errors.js';
+import { RpcError, BroadcastError, TimeoutError, AccountNotFoundError, ValidationError } from './errors.js';
+import { PanoptesClient } from './panoptes.js';
 import type {
   AccountInfo,
   BroadcastResult,
@@ -10,6 +11,7 @@ import type {
   Coin,
   Delegation,
   NodeStatus,
+  PreflightResult,
   Proposal,
   Reward,
   TxResponse,
@@ -18,6 +20,9 @@ import type {
 
 export interface ClientOptions {
   retryOptions?: Partial<RetryOptions>;
+  endpointStrategy?: 'static' | 'panoptes';
+  panoptesUrl?: string;
+  panoptesApiKey?: string;
 }
 
 export class RepublicClient {
@@ -25,6 +30,7 @@ export class RepublicClient {
   private rest: AxiosInstance;
   readonly config: ChainConfig;
   private retryOpts: Partial<RetryOptions>;
+  private panoptesClient: PanoptesClient | null = null;
 
   constructor(config?: Partial<ChainConfig>, options?: ClientOptions) {
     this.config = { ...REPUBLIC_TESTNET, ...config };
@@ -40,6 +46,13 @@ export class RepublicClient {
       baseURL: this.config.rest,
       timeout: 15000,
     });
+
+    if (options?.endpointStrategy === 'panoptes' || options?.panoptesUrl || options?.panoptesApiKey) {
+      this.panoptesClient = new PanoptesClient({
+        baseUrl: options.panoptesUrl,
+        apiKey: options.panoptesApiKey,
+      });
+    }
   }
 
   /** Tendermint JSON-RPC call with retry */
@@ -451,5 +464,38 @@ export class RepublicClient {
       status: p.status,
       votingEndTime: p.voting_end_time || '',
     };
+  }
+
+  // ─── Panoptes Integration ───────────────────────────────────────────────────
+
+  /** Broadcast with optional Panoptes preflight check */
+  async broadcastTxSafe(
+    txBytes: string,
+    preflightParams?: {
+      fromAddress: string;
+      toAddress?: string;
+      amount?: string;
+      denom?: string;
+    },
+    mode: 'sync' | 'async' | 'commit' = 'sync',
+  ): Promise<BroadcastResult & { preflight?: PreflightResult }> {
+    let preflightResult: PreflightResult | undefined;
+
+    if (preflightParams && this.panoptesClient) {
+      try {
+        preflightResult = await this.panoptesClient.preflight(preflightParams);
+        if (!preflightResult.safe) {
+          throw new ValidationError(
+            `Preflight check failed: ${preflightResult.recommendation}`,
+          );
+        }
+      } catch (err) {
+        if (err instanceof ValidationError) throw err;
+        // Panoptes unavailable — proceed without preflight
+      }
+    }
+
+    const result = await this.broadcastTx(txBytes, mode);
+    return { ...result, preflight: preflightResult };
   }
 }
