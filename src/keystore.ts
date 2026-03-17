@@ -117,7 +117,12 @@ export function migrateLegacyStore(legacy: LegacyKeyStore, password: string): Ke
 export function loadKeyStore(filePath: string): KeyStoreV2 | LegacyKeyStore | null {
   if (!existsSync(filePath)) return null;
   const raw = readFileSync(filePath, 'utf-8');
-  const data = JSON.parse(raw) as unknown;
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new KeystoreError(`Keystore file is corrupted: ${filePath}`);
+  }
 
   if (isLegacyKeyStore(data)) {
     return data;

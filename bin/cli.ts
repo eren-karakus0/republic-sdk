@@ -1,6 +1,7 @@
 import { Command } from 'commander';
-import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 import { RepublicKey } from '../src/key.js';
 import { RepublicClient } from '../src/client.js';
@@ -18,6 +19,9 @@ import {
   promptPassword,
 } from '../src/keystore.js';
 import type { KeyStoreV2, LegacyKeyStore, EncryptedKey } from '../src/types.js';
+
+const __cli_dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__cli_dirname, '..', 'package.json'), 'utf-8')) as { version: string };
 
 const CONFIG_DIR = join(homedir(), '.republic-sdk');
 const KEYS_FILE = join(CONFIG_DIR, 'keys.json');
@@ -132,7 +136,7 @@ const program = new Command();
 program
   .name('republic-sdk')
   .description('CLI for Republic AI blockchain')
-  .version('0.3.0');
+  .version(pkg.version);
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
 
@@ -188,6 +192,12 @@ keys
     const address = key.getAddress();
 
     if (opts.noPassword) {
+      // Guard: V2 encrypted store has keys — refuse no-password
+      if (Object.keys(store.keys).length > 0) {
+        console.error('Cannot use --no-password: encrypted keys exist.');
+        console.error('Export keys first or use password-based storage.');
+        process.exit(1);
+      }
       // No-password mode with no existing legacy store: create new legacy file
       const legacy: LegacyKeyStore = {};
       legacy[name] = {
@@ -309,6 +319,16 @@ keys
       const address = key.getAddress();
 
       if (opts.noPassword) {
+        // Guard: check if V2 store exists with keys
+        const rawData = loadKeyStore(KEYS_FILE);
+        if (rawData !== null && !isLegacyKeyStore(rawData)) {
+          const v2 = rawData as KeyStoreV2;
+          if (Object.keys(v2.keys).length > 0) {
+            console.error('Cannot use --no-password: encrypted keys exist.');
+            console.error('Export keys first or use password-based storage.');
+            process.exit(1);
+          }
+        }
         const legacy = loadLegacyKeys();
         if (legacy[name]) {
           console.error(`Key "${name}" already exists.`);
