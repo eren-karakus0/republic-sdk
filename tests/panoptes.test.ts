@@ -5,12 +5,12 @@ import { PanoptesClient } from '../src/panoptes';
 vi.mock('axios');
 const mockGet = vi.fn();
 const mockPost = vi.fn();
-vi.mocked(axios.create).mockReturnValue({ get: mockGet, post: mockPost } as any);
+vi.mocked(axios.create).mockReturnValue({ get: mockGet, post: mockPost } as unknown as ReturnType<typeof axios.create>);
 
 describe('PanoptesClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(axios.create).mockReturnValue({ get: mockGet, post: mockPost } as any);
+    vi.mocked(axios.create).mockReturnValue({ get: mockGet, post: mockPost } as unknown as ReturnType<typeof axios.create>);
   });
 
   describe('constructor', () => {

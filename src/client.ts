@@ -256,8 +256,11 @@ export class RepublicClient {
         gasUsed: result.tx_result.gas_used,
         events: result.tx_result.events,
       };
-    } catch {
-      return null;
+    } catch (err) {
+      // RPC "tx not found" → return null (normal polling)
+      if (err instanceof RpcError) return null;
+      // Infrastructure errors → rethrow (network down, timeout, etc.)
+      throw err;
     }
   }
 
