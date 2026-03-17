@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.3...republic-sdk-v0.3.4) (2026-03-17)
+
+
+### Bug Fixes
+
+* **ci:** exclude dev dependencies from npm audit ([c18b79e](https://github.com/eren-karakus0/republic-sdk/commit/c18b79ed7b5968af9aff1b1b5c45e752a6554a83))
+* post-audit hardening (keystore, client, CLI) ([#33](https://github.com/eren-karakus0/republic-sdk/issues/33)) ([2529cc5](https://github.com/eren-karakus0/republic-sdk/commit/2529cc51db742f8462897a678c1a659acf10e848))
+* **security:** add input validation, SSRF protection and harden build ([19180a9](https://github.com/eren-karakus0/republic-sdk/commit/19180a9ac8a3407ca65c8f5ba4996191ae309b1a))
+* **security:** SDK input validation, SSRF protection, build hardening ([032608e](https://github.com/eren-karakus0/republic-sdk/commit/032608e015830d3dcbeaa4e6460aadc2d9a45479))
+* wrap JSON.parse in job status with try-catch ([f05b232](https://github.com/eren-karakus0/republic-sdk/commit/f05b2327f184aa16650d18cc616b3d7f2f2998b9))
+* wrap JSON.parse in job status with try-catch ([6d35221](https://github.com/eren-karakus0/republic-sdk/commit/6d35221ae275fd50f37e270535f9e92399409e10))
+
 ## [0.3.3](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.2...republic-sdk-v0.3.3) (2026-03-16)
 
 
