@@ -5,72 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.4](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.3...republic-sdk-v0.3.4) (2026-03-17)
+## [0.3.4](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.3...republic-sdk-v0.3.4) (2026-03-17)
 
 
 ### Bug Fixes
 
-* **ci:** exclude dev dependencies from npm audit ([c18b79e](https://github.com/eren-karakus0/republic-sdk/commit/c18b79ed7b5968af9aff1b1b5c45e752a6554a83))
-* post-audit hardening (keystore, client, CLI) ([#33](https://github.com/eren-karakus0/republic-sdk/issues/33)) ([2529cc5](https://github.com/eren-karakus0/republic-sdk/commit/2529cc51db742f8462897a678c1a659acf10e848))
-* **security:** add input validation, SSRF protection and harden build ([19180a9](https://github.com/eren-karakus0/republic-sdk/commit/19180a9ac8a3407ca65c8f5ba4996191ae309b1a))
-* **security:** SDK input validation, SSRF protection, build hardening ([032608e](https://github.com/eren-karakus0/republic-sdk/commit/032608e015830d3dcbeaa4e6460aadc2d9a45479))
-* wrap JSON.parse in job status with try-catch ([f05b232](https://github.com/eren-karakus0/republic-sdk/commit/f05b2327f184aa16650d18cc616b3d7f2f2998b9))
-* wrap JSON.parse in job status with try-catch ([6d35221](https://github.com/eren-karakus0/republic-sdk/commit/6d35221ae275fd50f37e270535f9e92399409e10))
+* **ci:** exclude dev dependencies from npm audit ([c18b79e](https://github.com/PanoptesLabs/republic-sdk/commit/c18b79ed7b5968af9aff1b1b5c45e752a6554a83))
+* post-audit hardening (keystore, client, CLI) ([#33](https://github.com/PanoptesLabs/republic-sdk/issues/33)) ([2529cc5](https://github.com/PanoptesLabs/republic-sdk/commit/2529cc51db742f8462897a678c1a659acf10e848))
+* **security:** add input validation, SSRF protection and harden build ([19180a9](https://github.com/PanoptesLabs/republic-sdk/commit/19180a9ac8a3407ca65c8f5ba4996191ae309b1a))
+* **security:** SDK input validation, SSRF protection, build hardening ([032608e](https://github.com/PanoptesLabs/republic-sdk/commit/032608e015830d3dcbeaa4e6460aadc2d9a45479))
+* wrap JSON.parse in job status with try-catch ([f05b232](https://github.com/PanoptesLabs/republic-sdk/commit/f05b2327f184aa16650d18cc616b3d7f2f2998b9))
+* wrap JSON.parse in job status with try-catch ([6d35221](https://github.com/PanoptesLabs/republic-sdk/commit/6d35221ae275fd50f37e270535f9e92399409e10))
 
-## [0.3.3](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.2...republic-sdk-v0.3.3) (2026-03-16)
+## [0.3.3](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.2...republic-sdk-v0.3.3) (2026-03-16)
 
 
 ### Features
 
-* **panoptes:** add PanoptesClient and broadcastTxSafe method ([c135d4c](https://github.com/eren-karakus0/republic-sdk/commit/c135d4c7cd4b6b7cb620f00afc98f862e59bb88f))
-* **panoptes:** PanoptesClient integration ([f4310c4](https://github.com/eren-karakus0/republic-sdk/commit/f4310c407c79769f7784228ff2348e056ebb080f))
+* **panoptes:** add PanoptesClient and broadcastTxSafe method ([c135d4c](https://github.com/PanoptesLabs/republic-sdk/commit/c135d4c7cd4b6b7cb620f00afc98f862e59bb88f))
+* **panoptes:** PanoptesClient integration ([f4310c4](https://github.com/PanoptesLabs/republic-sdk/commit/f4310c407c79769f7784228ff2348e056ebb080f))
 
 
 ### Bug Fixes
 
-* **panoptes:** add URL encoding and scheme validation ([1583cfe](https://github.com/eren-karakus0/republic-sdk/commit/1583cfe670821005a1ebeaa661a96c427ce62f7e))
+* **panoptes:** add URL encoding and scheme validation ([1583cfe](https://github.com/PanoptesLabs/republic-sdk/commit/1583cfe670821005a1ebeaa661a96c427ce62f7e))
 
-## [0.3.2](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.1...republic-sdk-v0.3.2) (2026-03-04)
+## [0.3.2](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.1...republic-sdk-v0.3.2) (2026-03-04)
 
 
 ### Bug Fixes
 
-* chain publish into release-please workflow ([ab49c39](https://github.com/eren-karakus0/republic-sdk/commit/ab49c39557105107c5d55a1ca73e533344612fb5))
-* chain publish step into release-please workflow ([f7a005a](https://github.com/eren-karakus0/republic-sdk/commit/f7a005a0f404b6fda97d7455b6af2cac89af0c9e))
-* **ci:** add issues write permission for release-please labels ([2969877](https://github.com/eren-karakus0/republic-sdk/commit/2969877336c11b10b237094e2fe3ee98fe8fda64))
-* **docs:** update security policy, add CODEOWNERS, clean changelog ([12064d7](https://github.com/eren-karakus0/republic-sdk/commit/12064d7c08fafad483bb1d9820d7f32fb0ffbdd7))
-* **test:** fix integration test runner with separate vitest config ([46f2c2c](https://github.com/eren-karakus0/republic-sdk/commit/46f2c2c380b9290259b6a4f0866b46628ad44153))
-* **test:** upgrade vitest to v2 to fix DataCloneError in integration tests ([5954f3b](https://github.com/eren-karakus0/republic-sdk/commit/5954f3ba0927bbdd15ccf4bb37059a01ba9bbdd8))
-* **test:** use forks pool for integration tests to avoid DataCloneError ([158bd42](https://github.com/eren-karakus0/republic-sdk/commit/158bd42337f7036cd0b1ef4bd3b519772417b0e3))
+* chain publish into release-please workflow ([ab49c39](https://github.com/PanoptesLabs/republic-sdk/commit/ab49c39557105107c5d55a1ca73e533344612fb5))
+* chain publish step into release-please workflow ([f7a005a](https://github.com/PanoptesLabs/republic-sdk/commit/f7a005a0f404b6fda97d7455b6af2cac89af0c9e))
+* **ci:** add issues write permission for release-please labels ([2969877](https://github.com/PanoptesLabs/republic-sdk/commit/2969877336c11b10b237094e2fe3ee98fe8fda64))
+* **docs:** update security policy, add CODEOWNERS, clean changelog ([12064d7](https://github.com/PanoptesLabs/republic-sdk/commit/12064d7c08fafad483bb1d9820d7f32fb0ffbdd7))
+* **test:** fix integration test runner with separate vitest config ([46f2c2c](https://github.com/PanoptesLabs/republic-sdk/commit/46f2c2c380b9290259b6a4f0866b46628ad44153))
+* **test:** upgrade vitest to v2 to fix DataCloneError in integration tests ([5954f3b](https://github.com/PanoptesLabs/republic-sdk/commit/5954f3ba0927bbdd15ccf4bb37059a01ba9bbdd8))
+* **test:** use forks pool for integration tests to avoid DataCloneError ([158bd42](https://github.com/PanoptesLabs/republic-sdk/commit/158bd42337f7036cd0b1ef4bd3b519772417b0e3))
 
-## [0.3.1](https://github.com/eren-karakus0/republic-sdk/compare/republic-sdk-v0.3.0...republic-sdk-v0.3.1) (2026-03-04)
+## [0.3.1](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.0...republic-sdk-v0.3.1) (2026-03-04)
 
 
 ### Features
 
-* add live chain integration tests ([e5096e4](https://github.com/eren-karakus0/republic-sdk/commit/e5096e454fef70091a8a21438c1abf65e5f4554d))
-* add npm publish workflow and update README ([12e9937](https://github.com/eren-karakus0/republic-sdk/commit/12e9937a1c5f394bf66168cb37dc3d5dc9b4c991))
-* encrypted keystore with AES-256-GCM + scrypt KDF ([04bedc3](https://github.com/eren-karakus0/republic-sdk/commit/04bedc3223e8ed64c00c48f4fcfbacd6642ecd7e))
-* initial Republic AI TypeScript SDK ([15be914](https://github.com/eren-karakus0/republic-sdk/commit/15be91467cbb2712520af2677a0120778710d914))
-* **sdk:** v0.2.0 - retry, staking/gov queries, custom errors, CI ([0318b74](https://github.com/eren-karakus0/republic-sdk/commit/0318b742b47bb9ffcc5823e6e7300389d2fe4c3f))
-* v0.3.0 - encrypted keystore, npm publish, integration tests ([28d9bc6](https://github.com/eren-karakus0/republic-sdk/commit/28d9bc67a4561ee4e67954129be2721cad2cd768))
+* add live chain integration tests ([e5096e4](https://github.com/PanoptesLabs/republic-sdk/commit/e5096e454fef70091a8a21438c1abf65e5f4554d))
+* add npm publish workflow and update README ([12e9937](https://github.com/PanoptesLabs/republic-sdk/commit/12e9937a1c5f394bf66168cb37dc3d5dc9b4c991))
+* encrypted keystore with AES-256-GCM + scrypt KDF ([04bedc3](https://github.com/PanoptesLabs/republic-sdk/commit/04bedc3223e8ed64c00c48f4fcfbacd6642ecd7e))
+* initial Republic AI TypeScript SDK ([15be914](https://github.com/PanoptesLabs/republic-sdk/commit/15be91467cbb2712520af2677a0120778710d914))
+* **sdk:** v0.2.0 - retry, staking/gov queries, custom errors, CI ([0318b74](https://github.com/PanoptesLabs/republic-sdk/commit/0318b742b47bb9ffcc5823e6e7300389d2fe4c3f))
+* v0.3.0 - encrypted keystore, npm publish, integration tests ([28d9bc6](https://github.com/PanoptesLabs/republic-sdk/commit/28d9bc67a4561ee4e67954129be2721cad2cd768))
 
 
 ### Bug Fixes
 
-* add type module and fix CLI output extension for Node 18 ESM compatibility ([629127b](https://github.com/eren-karakus0/republic-sdk/commit/629127bb3cbff1fc2297b06ef39ec56daae71ea2))
-* audit findings - error handling, input validation, lint scope ([218ef12](https://github.com/eren-karakus0/republic-sdk/commit/218ef124bd486b3a5f41dddf23b1ad3ff96277dd))
-* audit findings - install docs, security contact, issue config ([c1bc9be](https://github.com/eren-karakus0/republic-sdk/commit/c1bc9be4769af4b3fb3f19da95ecd1008c2bf302))
-* bundle ESM-only dependency for CJS compatibility ([97641e2](https://github.com/eren-karakus0/republic-sdk/commit/97641e29eb3053ef3b3873e9cc5dfa9ec29d6971))
-* correct Fee.gas_limit protobuf field number and polish ([6e563f4](https://github.com/eren-karakus0/republic-sdk/commit/6e563f48a0b4585752f3af37aef987ad4c0d14b3))
-* critical fixes for production readiness ([e52e401](https://github.com/eren-karakus0/republic-sdk/commit/e52e40128bc6128beccdf043324fb87af0a4765e))
-* prevent legacy keystore data loss on encrypted key operations ([d89be3d](https://github.com/eren-karakus0/republic-sdk/commit/d89be3d2cabf45f0b75fbc3b7dc0836f5ae060e8))
-* stabilize release-please and sync package-lock.json ([d0c6ce0](https://github.com/eren-karakus0/republic-sdk/commit/d0c6ce0345a764e9bec6f367de1e911540fc819d))
+* add type module and fix CLI output extension for Node 18 ESM compatibility ([629127b](https://github.com/PanoptesLabs/republic-sdk/commit/629127bb3cbff1fc2297b06ef39ec56daae71ea2))
+* audit findings - error handling, input validation, lint scope ([218ef12](https://github.com/PanoptesLabs/republic-sdk/commit/218ef124bd486b3a5f41dddf23b1ad3ff96277dd))
+* audit findings - install docs, security contact, issue config ([c1bc9be](https://github.com/PanoptesLabs/republic-sdk/commit/c1bc9be4769af4b3fb3f19da95ecd1008c2bf302))
+* bundle ESM-only dependency for CJS compatibility ([97641e2](https://github.com/PanoptesLabs/republic-sdk/commit/97641e29eb3053ef3b3873e9cc5dfa9ec29d6971))
+* correct Fee.gas_limit protobuf field number and polish ([6e563f4](https://github.com/PanoptesLabs/republic-sdk/commit/6e563f48a0b4585752f3af37aef987ad4c0d14b3))
+* critical fixes for production readiness ([e52e401](https://github.com/PanoptesLabs/republic-sdk/commit/e52e40128bc6128beccdf043324fb87af0a4765e))
+* prevent legacy keystore data loss on encrypted key operations ([d89be3d](https://github.com/PanoptesLabs/republic-sdk/commit/d89be3d2cabf45f0b75fbc3b7dc0836f5ae060e8))
+* stabilize release-please and sync package-lock.json ([d0c6ce0](https://github.com/PanoptesLabs/republic-sdk/commit/d0c6ce0345a764e9bec6f367de1e911540fc819d))
 
 
 ### Documentation
 
-* restructure examples with runnable CLI scripts ([4c42108](https://github.com/eren-karakus0/republic-sdk/commit/4c42108bd57eb3889cb06b8fe8b3fef69dcb6839))
+* restructure examples with runnable CLI scripts ([4c42108](https://github.com/PanoptesLabs/republic-sdk/commit/4c42108bd57eb3889cb06b8fe8b3fef69dcb6839))
 
 ## [0.3.0] - 2026-03-04
 

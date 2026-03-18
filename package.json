@@ -41,11 +41,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eren-karakus0/republic-sdk"
+    "url": "https://github.com/PanoptesLabs/republic-sdk"
   },
-  "homepage": "https://github.com/eren-karakus0/republic-sdk#readme",
+  "homepage": "https://github.com/PanoptesLabs/republic-sdk#readme",
   "bugs": {
-    "url": "https://github.com/eren-karakus0/republic-sdk/issues"
+    "url": "https://github.com/PanoptesLabs/republic-sdk/issues"
   },
   "dependencies": {
     "@noble/hashes": "^1.3.3",

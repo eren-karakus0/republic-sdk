@@ -5,7 +5,7 @@ Thank you for your interest in contributing to Republic SDK!
 ## Development Setup
 
 ```bash
-git clone https://github.com/eren-karakus0/republic-sdk.git
+git clone https://github.com/PanoptesLabs/republic-sdk.git
 cd republic-sdk
 npm install
 ```
