@@ -20,7 +20,10 @@ import {
 } from '../src/keystore.js';
 import type { KeyStoreV2, LegacyKeyStore, EncryptedKey } from '../src/types.js';
 
-const __cli_dirname = dirname(fileURLToPath(import.meta.url));
+// __dirname is available in CJS (tsup output), import.meta.url in ESM
+const __cli_dirname = typeof __dirname !== 'undefined'
+  ? __dirname
+  : dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__cli_dirname, '..', 'package.json'), 'utf-8')) as { version: string };
 
 const CONFIG_DIR = join(homedir(), '.republic-sdk');
