@@ -1,7 +1,7 @@
 # Republic SDK
 
 [![npm version](https://img.shields.io/npm/v/republic-sdk.svg)](https://www.npmjs.com/package/republic-sdk)
-[![CI](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/eren-karakus0/republic-sdk/actions/workflows/ci.yml)
+[![CI](https://github.com/PanoptesLabs/republic-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/PanoptesLabs/republic-sdk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 
@@ -31,7 +31,7 @@ npm install republic-sdk
 Or install directly from GitHub:
 
 ```bash
-npm install github:eren-karakus0/republic-sdk
+npm install github:PanoptesLabs/republic-sdk
 ```
 
 ## Quick Start
