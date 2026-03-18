@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.4...republic-sdk-v0.3.5) (2026-03-18)
+
+
+### Bug Fixes
+
+* add pagination support for cosmos REST queries ([#39](https://github.com/PanoptesLabs/republic-sdk/issues/39)) ([0cf7ff0](https://github.com/PanoptesLabs/republic-sdk/commit/0cf7ff0d5cbdd297f5b8272e91bd2027ad862a31))
+
 ## [0.3.4](https://github.com/PanoptesLabs/republic-sdk/compare/republic-sdk-v0.3.3...republic-sdk-v0.3.4) (2026-03-17)
 
 
