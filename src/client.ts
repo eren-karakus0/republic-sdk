@@ -89,6 +89,39 @@ export class RepublicClient {
     }, this.retryOpts);
   }
 
+  /** REST GET with automatic pagination for Cosmos SDK list endpoints */
+  private async restGetPaginated<T>(
+    path: string,
+    itemsKey: string,
+    options?: { limit?: number; maxPages?: number },
+  ): Promise<T[]> {
+    const limit = options?.limit ?? 100;
+    const maxPages = options?.maxPages ?? 50;
+    const all: T[] = [];
+    let nextKey: string | null = null;
+    let page = 0;
+
+    do {
+      if (page >= maxPages) break;
+      const separator = path.includes('?') ? '&' : '?';
+      const paginationQuery = nextKey
+        ? `${separator}pagination.limit=${limit}&pagination.key=${encodeURIComponent(nextKey)}`
+        : `${separator}pagination.limit=${limit}`;
+
+      const data = await this.restGet<Record<string, unknown>>(
+        `${path}${paginationQuery}`,
+      );
+      const items = (data[itemsKey] || []) as T[];
+      all.push(...items);
+
+      const pagination = data.pagination as { next_key?: string } | undefined;
+      nextKey = pagination?.next_key ?? null;
+      page++;
+    } while (nextKey);
+
+    return all;
+  }
+
   /** Query node status */
   async getStatus(): Promise<NodeStatus> {
     const result = await this.rpcCall<{
@@ -343,12 +376,13 @@ export class RepublicClient {
   ): Promise<Validator[]> {
     const query = status ? `?status=${status}` : '';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.restGet<any>(
+    const raw = await this.restGetPaginated<any>(
       `/cosmos/staking/v1beta1/validators${query}`,
+      'validators',
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.validators || []).map((v: any) => ({
+    return raw.map((v: any) => ({
       operatorAddress: v.operator_address,
       moniker: v.description?.moniker || '',
       status: v.status,
@@ -381,12 +415,13 @@ export class RepublicClient {
   async getDelegations(delegatorAddress: string): Promise<Delegation[]> {
     validateBech32Address(delegatorAddress, this.config.addressPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.restGet<any>(
+    const raw = await this.restGetPaginated<any>(
       `/cosmos/staking/v1beta1/delegations/${encodeURIComponent(delegatorAddress)}`,
+      'delegation_responses',
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.delegation_responses || []).map((d: any) => ({
+    return raw.map((d: any) => ({
       delegatorAddress: d.delegation?.delegator_address,
       validatorAddress: d.delegation?.validator_address,
       shares: d.delegation?.shares || '0',
@@ -419,12 +454,13 @@ export class RepublicClient {
   async getRewards(delegatorAddress: string): Promise<Reward[]> {
     validateBech32Address(delegatorAddress, this.config.addressPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.restGet<any>(
+    const raw = await this.restGetPaginated<any>(
       `/cosmos/distribution/v1beta1/delegators/${encodeURIComponent(delegatorAddress)}/rewards`,
+      'rewards',
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.rewards || []).map((r: any) => ({
+    return raw.map((r: any) => ({
       validatorAddress: r.validator_address,
       reward: r.reward || [],
     })) as Reward[];
@@ -451,12 +487,13 @@ export class RepublicClient {
   async getProposals(status?: string): Promise<Proposal[]> {
     const query = status ? `?proposal_status=${status}` : '';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.restGet<any>(
+    const raw = await this.restGetPaginated<any>(
       `/cosmos/gov/v1beta1/proposals${query}`,
+      'proposals',
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.proposals || []).map((p: any) => ({
+    return raw.map((p: any) => ({
       proposalId: p.proposal_id || p.id,
       title: p.content?.title || p.title || '',
       status: p.status,
